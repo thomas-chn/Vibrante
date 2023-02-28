@@ -1,0 +1,31 @@
+﻿<Window x:Class="Vibrante.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Vibrante"
+        mc:Ignorable="d"
+        Title="Vibrante" Height="450" Width="800" Background="#FF282A46">
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Disabled"> <!--Makes elements lose focus when clicked on background-->
+            <DockPanel x:Name="MainContainer">
+                <DockPanel x:Name="HeaderContainer" VerticalAlignment="Top" LastChildFill="False" DockPanel.Dock="Top" Margin="0,5,0,0">
+                    <Label Content="File" Foreground="White" BorderBrush="White" MinWidth="50" HorizontalContentAlignment="Center" Padding="0,0,0,0" Margin="5,0,5,0" Background="#33000000" FontSize="14"/>
+                </DockPanel>
+
+                <DockPanel x:Name="TabsContainer" VerticalAlignment="Top" LastChildFill="False" Margin="0,10,0,0" Height="20.62" DockPanel.Dock="Top">
+                    <Label Content="Composer" Foreground="White" BorderBrush="White" BorderThickness="1,1,1,1" MinWidth="50" HorizontalContentAlignment="Center" Padding="5,0,5,0" Margin="5,0,5,0" FontSize="14"/>
+                    <Label Content="Acoustic signatures" Foreground="White" BorderBrush="White" BorderThickness="1,1,1,1" MinWidth="50" HorizontalContentAlignment="Center" Padding="5,0,5,0" Margin="5,0,5,0" FontSize="14"/>
+                </DockPanel>
+
+                <Grid x:Name="ContentContainer" DockPanel.Dock="Top" Background="#00000000" Margin="5,10,5,5">
+
+                    <Grid x:Name="AcousticSignatureGrid" Visibility="Hidden"/>
+                </Grid>
+
+            </DockPanel>
+        </ScrollViewer>
+
+
+    </Grid>
+</Window>

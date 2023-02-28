@@ -1,0 +1,161 @@
+﻿<UserControl x:Class="Vibrante.UserControls.Composer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Vibrante"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800" Loaded="UserControl_Loaded" SizeChanged="UserControl_SizeChanged" MouseMove="UserControl_MouseMove" MouseDown="UserControl_MouseDown" MouseUp="UserControl_MouseUp" Background="#00000000">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Design.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    
+    <Grid x:Name="MainGrid" Visibility="Visible">
+
+        <DockPanel Margin="5,5,5,5">
+            <DockPanel x:Name="ControlsContainer" DockPanel.Dock="Top">
+                <StackPanel x:Name="TimeControlsContainer" Orientation="Horizontal"></StackPanel>
+
+                <DockPanel Margin="0,5,0,0" DockPanel.Dock="Left" LastChildFill="False">
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="PointTool_MouseDown">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Ellipse x:Name="PointTool_Ellipse1" Width="15" Height="15" Stroke="{DynamicResource SelectedIcon}"/>
+                        <Ellipse x:Name="PointTool_Ellipse2" Width="10" Height="10" Fill="{DynamicResource SelectedIcon}"/>
+                    </Grid>
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" MouseDown="SelectionTool_MouseDown">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Rectangle x:Name="SelectionTool_Rect1" Fill="{DynamicResource NotSelectedIcon}" Width="3" Height="12"></Rectangle>
+                        <Rectangle x:Name="SelectionTool_Rect2" Fill="{DynamicResource NotSelectedIcon}" Width="7" Height="2" Margin="0,0,0,13"></Rectangle>
+                        <Rectangle x:Name="SelectionTool_Rect3" Fill="{DynamicResource NotSelectedIcon}" Width="7" Height="2" Margin="0,13,0,0"></Rectangle>
+                    </Grid>
+                </DockPanel>
+
+                <DockPanel Margin="30,5,0,0" DockPanel.Dock="Left" LastChildFill="False">
+                    
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" ToolTip="Snap to grid">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="1.5" Width="15"/>
+                        <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="15" Width="1.5"/>
+                        <Ellipse Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Width="7" Height="7" Stroke="{StaticResource ButtonBackground}" StrokeThickness="0.5"/>
+                    </Grid>
+
+                    <Label Foreground="{DynamicResource NotSelectedIcon}" Content="X:" FontWeight="Bold" FontSize="14" Padding="5,0,5,0" VerticalContentAlignment="Center"/>
+                    <TextBox MinWidth="25" Background="{DynamicResource ButtonBackground}" BorderBrush="{DynamicResource ButtonBorder}" Foreground="{DynamicResource NotSelectedIcon}" Text="5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" FontSize="15" PreviewTextInput="GridTool_GridGapX_PreviewTextInput" PreviewKeyDown="GridTool_GridGapX_PreviewKeyDown" LostKeyboardFocus="GridTool_GridGapX_LostKeyboardFocus" AllowDrop="False"></TextBox>
+                    <Label Foreground="{DynamicResource NotSelectedIcon}" Content="Y:" FontWeight="Bold" FontSize="14" Padding="5,0,5,0" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
+                    <TextBox MinWidth="25" Background="{DynamicResource ButtonBackground}" BorderBrush="{DynamicResource ButtonBorder}" Foreground="{DynamicResource NotSelectedIcon}" Text="5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" FontSize="15"></TextBox>
+                    
+                </DockPanel>
+
+                <DockPanel Margin="30,5,0,0" DockPanel.Dock="Left" LastChildFill="False">
+                    <Grid Width="25" Height="25" Background="{DynamicResource ButtonBackground}" Margin="0,0,5,0" MouseLeftButtonDown="GenerateControl_MouseDown" ToolTip="Generate Sound">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Path Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                            <Path.Data>
+                                <PathGeometry>
+                                    <PathGeometry.Figures>
+                                        <PathFigureCollection>
+                                            <PathFigure StartPoint="5,12.5">
+                                                <PathFigure.Segments>
+                                                    <PathSegmentCollection>
+                                                        <BezierSegment Point1="12,3" Point2="13,22" Point3="20,12.5" />
+                                                    </PathSegmentCollection>
+                                                </PathFigure.Segments>
+                                            </PathFigure>
+                                        </PathFigureCollection>
+                                    </PathGeometry.Figures>
+                                </PathGeometry>
+                            </Path.Data>
+                        </Path>
+
+
+                    </Grid>
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="SkipToStartControl_MouseDown" ToolTip="Skip to Start">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Polygon Fill="{DynamicResource NotSelectedIcon}" RenderTransformOrigin="0.5,0.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" StrokeLineJoin="Round" Stretch="Fill" Width="13" Height="15" Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0">
+                            <Polygon.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                    <SkewTransform/>
+                                    <RotateTransform Angle="180" CenterY="0" CenterX="0"/>
+                                    <TranslateTransform/>
+                                </TransformGroup>
+                            </Polygon.RenderTransform>
+                            <Polygon.Points>
+                                <Point X="0" Y="0"/>
+                                <Point X="0" Y="25"/>
+                                <Point X="25" Y="12.5"/>
+                            </Polygon.Points>
+                        </Polygon>
+                        <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="15" Width="3" Margin="0,0,12.5,0"></Rectangle>
+                    </Grid>
+                    <Grid x:Name="PlayControl_Grid" Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="PlayControl_MouseDown" ToolTip="Play">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Polygon x:Name="PlayButton_PlayIcon" Fill="{DynamicResource NotSelectedIcon}" RenderTransformOrigin="0.5,0.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" StrokeLineJoin="Round" Stretch="Fill" Width="13" Height="15" Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" Margin="2,0,0,0">
+
+                            <Polygon.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                    <SkewTransform/>
+                                    <RotateTransform/>
+                                    <TranslateTransform/>
+                                </TransformGroup>
+                            </Polygon.RenderTransform>
+                            <Polygon.Points>
+                                <Point X="0" Y="0"/>
+                                <Point X="0" Y="25"/>
+                                <Point X="25" Y="12.5"/>
+                            </Polygon.Points>
+                        </Polygon>
+                        <Rectangle x:Name="PlayButton_PauseRect1" Fill="{DynamicResource NotSelectedIcon}" Width="4" Height="15" Margin="7,0,0,0" Opacity="0"/>
+                        <Rectangle x:Name="PlayButton_PauseRect2" Fill="{DynamicResource NotSelectedIcon}" Width="4" Height="15" Margin="0,0,7,0" Opacity="0"/>
+                    </Grid>
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="SkipToEndControl_MouseDown" ToolTip="Skip to End">
+                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Polygon Fill="{DynamicResource NotSelectedIcon}" RenderTransformOrigin="0.5,0.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" StrokeLineJoin="Round" Stretch="Fill" Width="13" Height="15" Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,2,0">
+                            <Polygon.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                    <SkewTransform/>
+                                    <RotateTransform/>
+                                    <TranslateTransform/>
+                                </TransformGroup>
+                            </Polygon.RenderTransform>
+                            <Polygon.Points>
+                                <Point X="0" Y="0"/>
+                                <Point X="0" Y="25"/>
+                                <Point X="25" Y="12.5"/>
+                            </Polygon.Points>
+                        </Polygon>
+                        <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="15" Width="3" Margin="12.5,0,0,0"></Rectangle>
+                    </Grid>
+                </DockPanel>
+            </DockPanel>
+
+            <Grid VerticalAlignment="Top" Margin="0,10, 0, 0" DockPanel.Dock="Top">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding Mode=OneWay, Source={StaticResource ComposerTrackHeaderWidth}}"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Label x:Name="NewTrackButton" Content="Create a new track" Foreground="{DynamicResource TextForeground}" Background="{DynamicResource ButtonBackground}" MouseEnter="NewTrackButton_MouseEnter" MouseLeave="NewTrackButton_MouseLeave" MouseDown="NewTrackButton_MouseDown" Height="25" DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="5,0,5,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                <Canvas x:Name="Timeline" Background="{DynamicResource ButtonBackground}" DockPanel.Dock="Top" Grid.Column="1" ClipToBounds="True" Height="35" MouseLeftButtonDown="TimelineLeftClick" Margin="25,0,0,0"/>
+            </Grid>
+
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,5,0,0">
+                <StackPanel x:Name="TracksContainer" DockPanel.Dock="Top">
+
+                </StackPanel>
+            </ScrollViewer>
+
+
+        </DockPanel>
+        <Grid/>
+
+    </Grid>
+</UserControl>
