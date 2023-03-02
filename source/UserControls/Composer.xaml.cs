@@ -25,7 +25,11 @@ namespace Vibrante.UserControls
     public partial class Composer : UserControl
     {
         internal FrameworkElement clickedElement = null; // Clicked element, can also be an element belonging to a child user control
-        
+
+        internal bool snapToGridEnabled = false; // Is the snap-to-grid feature enabled?
+        internal double snapToGridSpacingValueX = 5;
+        internal double snapToGridSpacingValueY = 5;
+
         internal Point lastMousePosition = new Point(0, 0); // Mouse position relative to MainGrid, updated only when needed
         internal double timeZoom = 1; // Zoom value on the time axis, common to all tracks
         internal double timePosition = 0; // Position of the time axis
@@ -43,34 +47,8 @@ namespace Vibrante.UserControls
             Static.CurrentTool = Static.Tools.Point;
             
             InitializeComponent();
-        }
 
-
-        /// <summary>
-        /// Update the Static.CurrentTool value and the tool selection UI
-        /// </summary>
-        private void SelectTool(Static.Tools Tool)
-        {
-            Static.CurrentTool = Tool;
-            
-            if (Tool == Static.Tools.Point)
-            {
-                PointTool_Ellipse1.Stroke = (SolidColorBrush)Application.Current.Resources["SelectedIcon"];
-                PointTool_Ellipse2.Fill = (SolidColorBrush)Application.Current.Resources["SelectedIcon"];
-
-                SelectionTool_Rect1.Fill = (SolidColorBrush)Application.Current.Resources["NotSelectedIcon"];
-                SelectionTool_Rect2.Fill = (SolidColorBrush)Application.Current.Resources["NotSelectedIcon"];
-                SelectionTool_Rect3.Fill = (SolidColorBrush)Application.Current.Resources["NotSelectedIcon"];
-            }
-            else if (Tool == Static.Tools.Selection)
-            {
-                PointTool_Ellipse1.Stroke = (SolidColorBrush)Application.Current.Resources["NotSelectedIcon"];
-                PointTool_Ellipse2.Fill = (SolidColorBrush)Application.Current.Resources["NotSelectedIcon"];
-
-                SelectionTool_Rect1.Fill = (SolidColorBrush)Application.Current.Resources["SelectedIcon"];
-                SelectionTool_Rect2.Fill = (SolidColorBrush)Application.Current.Resources["SelectedIcon"];
-                SelectionTool_Rect3.Fill = (SolidColorBrush)Application.Current.Resources["SelectedIcon"];
-            }
+            Resources["SnapToGridIconColor"] = Resources["NotSelectedIcon"];
         }
 
         /// <summary>
@@ -319,30 +297,36 @@ namespace Vibrante.UserControls
             
         }
         
-        private void PointTool_MouseDown(object sender, MouseButtonEventArgs e)
+
+        private void SnapToGrid_LeftClick(object sender, MouseButtonEventArgs e)
         {
-            SelectTool(Static.Tools.Point);
+            if (snapToGridEnabled)
+            {
+                snapToGridEnabled = false;
+                Resources["SnapToGridIconColor"] = Resources["NotSelectedIcon"];
+            }
+            else
+            {
+                snapToGridEnabled = true;
+                Resources["SnapToGridIconColor"] = Resources["SelectedIcon"];
+            }
         }
 
-        private void SelectionTool_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            SelectTool(Static.Tools.Selection);
-        }
 
-        private void GridTool_GridGapX_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        private void SnapToGridGapValue_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             // Check if the text is a number
             if (!char.IsDigit(e.Text, e.Text.Length - 1))
             {
-                
                 if (e.Text != "." || ((TextBox)sender).Text.Contains("."))
                 {
                     e.Handled = true;
+                    return;
                 }
             }
         }
 
-        private void GridTool_GridGapX_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void SnapToGridGapValue_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             // Check if the pasted text is a number
             if ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) && e.Key == Key.V)
@@ -357,7 +341,7 @@ namespace Vibrante.UserControls
             }
         }
 
-        private void GridTool_GridGapX_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        private void SnapToGridGapValue_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             // Check if the text is a number
             double number;
@@ -365,6 +349,10 @@ namespace Vibrante.UserControls
             {
                 ((TextBox)sender).Text = "1";
             }
+            
+            // Update the snap-to-grid spacing values
+            snapToGridSpacingValueX = Double.Parse(SnapToGridSpacingValueX_TextBox.Text, System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+            snapToGridSpacingValueY = Double.Parse(SnapToGridSpacingValueY_TextBox.Text, System.Globalization.CultureInfo.GetCultureInfo("en-US"));
         }
 
 

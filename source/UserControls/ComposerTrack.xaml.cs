@@ -311,6 +311,13 @@ namespace Vibrante.UserControls
             //Update PositionLabel
             double position_in_ms = Math.Round(Composer.Static.ConvertPixelsToUnit(MousePosition.X, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom), 2) + Composer.Static.currentComposer.timePosition;
             double position_in_hz = Math.Round(Composer.Static.PixelToHz(SoundCanvas.ActualHeight - MousePosition.Y, pitchZoom), 2) + pitchPosition;
+
+            if (Composer.Static.currentComposer.snapToGridEnabled)
+            {
+                position_in_ms = MainWindow.RoundToNearestMultiple(position_in_ms, Composer.Static.currentComposer.snapToGridSpacingValueX);
+                position_in_hz = MainWindow.RoundToNearestMultiple(position_in_hz, Composer.Static.currentComposer.snapToGridSpacingValueY);
+            }
+            
             PositionLabel.Content = "X: " + position_in_ms + "ms Y: " + position_in_hz + "Hz";
 
             //Move a point

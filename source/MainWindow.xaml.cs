@@ -30,15 +30,26 @@ namespace Vibrante
             ContentContainer.Children.Add(new UserControls.Composer());
         }
 
+        // Set the window title
         public static void SetWindowTitle(IFormattable content)
         {
             ((MainWindow)Application.Current.MainWindow).Title = content.ToString();
         }
-
         public static void SetWindowTitle(string content)
         {
             ((MainWindow)Application.Current.MainWindow).Title = content;
         }
+
+        // Round a value to the nearest multiple of another value
+        public static double RoundToNearestMultiple(double value, int multiple)
+        {
+            return Math.Round(value / multiple) * multiple;
+        }
+        public static double RoundToNearestMultiple(double value, double multiple)
+        {
+            return Math.Round(value / multiple) * multiple;
+        }
+
     }
 
     
