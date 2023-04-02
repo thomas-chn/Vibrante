@@ -8,5 +8,29 @@
     <Setting Name="HorizontalPanningMouseWheelSensi" Type="System.Double" Scope="User">
       <Value Profile="(Default)">0.1</Value>
     </Setting>
+    <Setting Name="TimelineMsPerPixel" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">10</Value>
+    </Setting>
+    <Setting Name="TimelinePixelPerGrad" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">50</Value>
+    </Setting>
+    <Setting Name="PitchScaleHzPerPixel" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">5</Value>
+    </Setting>
+    <Setting Name="PitchScalePixelPerGrad" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">20</Value>
+    </Setting>
+    <Setting Name="VolumeScalePercentPerPixel" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">1</Value>
+    </Setting>
+    <Setting Name="VolumeScalePixelPerGrad" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">20</Value>
+    </Setting>
+    <Setting Name="PanningScalePercentPerPixel" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">5</Value>
+    </Setting>
+    <Setting Name="PanningScalePixelPerGrad" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">20</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

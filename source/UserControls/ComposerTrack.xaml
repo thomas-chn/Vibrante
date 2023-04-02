@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Vibrante.UserControls"
+             xmlns:usercontrols="clr-namespace:Vibrante.UserControls"
              mc:Ignorable="d" 
              d:DesignHeight="150" d:DesignWidth="800" Loaded="UserControl_Loaded" SizeChanged="UserControl_SizeChanged">
 
@@ -18,7 +19,7 @@
     <Grid Margin="0,5,0,5" Height="140">
         <Border BorderBrush="White" BorderThickness="1,1,1,1"/>
 
-        <Grid>
+        <Grid Margin="1,1,1,1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="{Binding Mode=OneWay, Source={StaticResource ComposerTrackHeaderWidth}}" MinWidth="50" MaxWidth="300"/>
                 <ColumnDefinition Width="Auto"/>
@@ -27,32 +28,110 @@
             </Grid.ColumnDefinitions>
 
             <DockPanel Grid.Column="0" Background="#00000000">
-                <StackPanel DockPanel.Dock="Left">
-                    <DockPanel>
-                        <TextBox Background="Transparent" Foreground="{StaticResource TextForeground}" FontSize="17" FontWeight="Bold" Text="New Track" HorizontalAlignment="Left" Margin="5,3,0,0" DockPanel.Dock="Top" MaxLength="20" BorderBrush="{x:Null}"/>
-                        <DockPanel DockPanel.Dock="Top" Margin="5,10,5,0">
-                            <Label Foreground="{StaticResource TextForeground}" Content="Sound:"></Label>
-                            <ComboBox x:Name="SoundListCB"></ComboBox>
-                        </DockPanel>
-                        <DockPanel DockPanel.Dock="Top" Margin="5,10,5,0">
-                            <Label Foreground="{StaticResource TextForeground}" Content="Interpolation:"></Label>
-                            <ComboBox x:Name="InterpolationListCB" SelectionChanged="InterpolationCB_SelectionChanged"></ComboBox>
-                        </DockPanel>
-                    </DockPanel>
+                <TextBox Background="Transparent" Foreground="{StaticResource TextForeground}" BorderBrush="{x:Null}" CaretBrush="{DynamicResource TextForeground}" FontSize="14" FontWeight="Bold" Text="New Track" Margin="5,2,5,2" DockPanel.Dock="Top" MaxLength="20"  PreviewMouseLeftButtonDown="TrackName_MouseLeftDown" PreviewKeyDown="TrackName_PreviewKeyDown"/>
+                <Rectangle DockPanel.Dock="Top" Fill="{DynamicResource NotSelectedIcon}" Height="1"/>
+                <UniformGrid DockPanel.Dock="Left" Rows="3" Columns="1" Margin="5,0,5,0">
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" ToolTip="Pitch" MouseLeftButtonDown="PitchTab_MouseLeftDown">
+                        <Border BorderBrush="{StaticResource PitchColor}" BorderThickness="2,2,2,2" Opacity="0.75"/>
+                        <Path Stroke="{StaticResource PitchColor}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                            <Path.Data>
+                                <PathGeometry>
+                                    <PathGeometry.Figures>
+                                        <PathFigureCollection>
+                                            <PathFigure StartPoint="5,12.5">
+                                                <PathFigure.Segments>
+                                                    <PathSegmentCollection>
+                                                        <BezierSegment Point1="12,3" Point2="13,22" Point3="20,12.5" />
+                                                    </PathSegmentCollection>
+                                                </PathFigure.Segments>
+                                            </PathFigure>
+                                        </PathFigureCollection>
+                                    </PathGeometry.Figures>
+                                </PathGeometry>
+                            </Path.Data>
+                        </Path>
+                    </Grid>
 
-                </StackPanel>
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" ToolTip="Volume" MouseLeftButtonDown="VolumeTab_MouseLeftDown">
+                        <Border BorderBrush="{StaticResource VolumeColor}" BorderThickness="2,2,2,2" Opacity="0.75"/>
+                        <Path Stroke="{DynamicResource VolumeColor}" StrokeThickness="2">
+                            <Path.Data>
+                                <GeometryGroup>
+                                    <PathGeometry>
+                                        <PathFigure StartPoint="7,10">
+                                            <ArcSegment Size="10,10" IsLargeArc="False" SweepDirection="Clockwise" Point="7, 15" />
+                                        </PathFigure>
+                                        <PathFigure StartPoint="11,8">
+                                            <ArcSegment Size="10,10" IsLargeArc="False" SweepDirection="Clockwise" Point="11, 17" />
+                                        </PathFigure>
+                                        <PathFigure StartPoint="15,6">
+                                            <ArcSegment Size="10,10" IsLargeArc="False" SweepDirection="Clockwise" Point="15, 19" />
+                                        </PathFigure>
+                                    </PathGeometry>
+                                </GeometryGroup>
+                            </Path.Data>
+                        </Path>
+                    </Grid>
+
+                    <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" ToolTip="Panning" MouseLeftButtonDown="PanningTab_MouseLeftDown">
+                        <Border BorderBrush="{StaticResource PanningColor}" BorderThickness="2,2,2,2" Opacity="0.75"/>
+                        <Ellipse Width="18" Height="18" StrokeThickness="2" Stroke="{DynamicResource PanningColor}"/>
+                        <Rectangle Width="2" Height="18" Fill="{DynamicResource PanningColor}"/>
+                    </Grid>
+                </UniformGrid>
+                <Rectangle DockPanel.Dock="Left" Fill="{DynamicResource NotSelectedIcon}" Width="1"/>
+
+                <TabControl x:Name="TabController" Padding="0,0,0,0" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="{x:Null}" ScrollViewer.VerticalScrollBarVisibility="Disabled" UseLayoutRounding="False" BorderThickness="0,0,0,0">
+                    <TabItem Header="Pitch" Visibility="Collapsed">
+                        <StackPanel Margin="5,0,0,0">
+                            <Label Foreground="{StaticResource TextForeground}" Content="Interpolation:" Padding="0,0,0,0" Margin="0,0,0,3"></Label>
+                            <ComboBox x:Name="PitchTab_InterpolationCB" SelectionChanged="PitchTab_InterpolationCB_SelectionChanged" HorizontalAlignment="Left"></ComboBox>
+                            <Label Foreground="{StaticResource TextForeground}" Content="Sound:" Padding="0,0,0,0" Margin="0,0,0,3"></Label>
+                            <ComboBox x:Name="SoundListCB" HorizontalAlignment="Left"></ComboBox>
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Volume" Visibility="Collapsed">
+                        <StackPanel Margin="5,0,0,0">
+                            <DockPanel LastChildFill="True">
+                                <Label Foreground="{StaticResource TextForeground}" Content="Constant" Padding="0,0,0,0" Margin="0,0,5,0" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <CheckBox x:Name="VolumeTab_ConstantCheckBox" IsChecked="True" Margin="0,1,0,0" Checked="VolumeTab_ConstantCheckBox_Changed" Unchecked="VolumeTab_ConstantCheckBox_Changed" DockPanel.Dock="Left" VerticalAlignment="Center"></CheckBox>
+                                <usercontrols:NumericTextBox x:Name="VolumeTab_ConstantTextBox" Text="75" AllowDecimal="False" AllowNegative="False" AllowZero="True" DockPanel.Dock="Left" HorizontalAlignment="Center" Width="40" MinValue="0" MaxValue="100" ValueChanged="VolumeTab_ConstantTextBox_ValueChanged"/>
+                            </DockPanel>
+
+                            <Label Foreground="{StaticResource TextForeground}" Content="Interpolation:" Padding="0,0,0,0" Margin="0,0,0,3"></Label>
+                            <ComboBox x:Name="VolumeTab_InterpolationCB" SelectionChanged="VolumeTab_InterpolationCB_SelectionChanged" HorizontalAlignment="Left"></ComboBox>
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Panning" Visibility="Collapsed">
+                        <StackPanel Margin="5,0,0,0">
+                            <DockPanel LastChildFill="True">
+                                <Label Foreground="{StaticResource TextForeground}" Content="Constant" Padding="0,0,0,0" Margin="0,0,5,0" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <CheckBox x:Name="PanningTab_ConstantCheckBox" IsChecked="True" Margin="0,1,0,0" Checked="PanningTab_ConstantCheckBox_Changed" Unchecked="PanningTab_ConstantCheckBox_Changed" DockPanel.Dock="Left" VerticalAlignment="Center"></CheckBox>
+                                <usercontrols:NumericTextBox x:Name="PanningTab_ConstantTextBox" Text="0" AllowDecimal="False" AllowNegative="True" AllowZero="True" DockPanel.Dock="Left" HorizontalAlignment="Center" Width="40" MinValue="-100" MaxValue="100" ValueChanged="PanningTab_ConstantTextBox_ValueChanged"/>
+                            </DockPanel>
+
+                            <Label Foreground="{StaticResource TextForeground}" Content="Interpolation:" Padding="0,0,0,0" Margin="0,0,0,3"></Label>
+                            <ComboBox x:Name="PanningTab_InterpolationCB" SelectionChanged="PanningTab_InterpolationCB_SelectionChanged" HorizontalAlignment="Left"></ComboBox>
+                        </StackPanel>
+                    </TabItem>
+                </TabControl>
+
             </DockPanel>
 
             <GridSplitter Grid.Column="1" Width="2" DockPanel.Dock="Right" Background="White" IsEnabled="False"/>
 
+
             <Canvas x:Name="VerticalScaleBar" Grid.Column="2" Background="{DynamicResource ButtonBackground}" ClipToBounds="True" Width="30" Margin="0, 1, 0, 1" Tag="{Binding ElementName=userControl}" MouseDown="VerticalScaleBar_MouseClick" ScrollViewer.VerticalScrollBarVisibility="Disabled">
-                </Canvas>
+            </Canvas>
 
-            <Grid Grid.Column="3">
+
+            <Grid x:Name="SoundCanvas_Grid" Grid.Column="3">
                 <Label x:Name="PositionLabel" Content="Position: 15ms;168Hz" Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="#7F000000" FontSize="10" Margin="1,1,1,1" Opacity="0"/>
-                <Canvas x:Name="SoundCanvas"  Background="#00000000" MouseDown="CanvasMouseClick" MouseMove="CanvasMouseMove" ClipToBounds="True" MouseUp="CanvasMouseButtonUp" MouseEnter="CanvasMouseEnter" MouseLeave="CanvasMouseLeave" Tag="{Binding ElementName=userControl}" MouseWheel="CanvasMouseWheel">
+                <Canvas x:Name="SoundCanvas"  Background="#00000000" MouseDown="CanvasMouseClick" MouseMove="CanvasMouseMove" ClipToBounds="True" MouseUp="CanvasMouseButtonUp" MouseEnter="CanvasMouseEnter" MouseLeave="CanvasMouseLeave" Tag="{Binding ElementName=userControl}" MouseWheel="CanvasMouseWheel" Margin="0,1,0,1"/>
+                <Grid x:Name="StereoDisabledAlert_Grid" Background="#B2000000" Visibility="Hidden">
+                    <Label Content="You must enable stereo sound generation to use this feature." Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
 
-                </Canvas>
             </Grid>
 
         </Grid>

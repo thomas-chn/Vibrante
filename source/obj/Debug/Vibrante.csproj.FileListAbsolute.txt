@@ -39,3 +39,6 @@ C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\De
 C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\Debug\UserControls\SoundEditor.baml
 C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\Debug\UserControls\InterpolationEditor.g.cs
 C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\Debug\UserControls\InterpolationEditor.baml
+C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\Debug\UserControls\NumericTextBox.baml
+C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\Debug\UserControls\NumericTextBox.g.cs
+C:\Users\cohen\OneDrive\Bureau\Projets programmation\C#\Vibrante\Vibrante\obj\Debug\GeneratedInternalTypeHelper.g.cs

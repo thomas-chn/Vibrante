@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NAudio.Wave;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -20,19 +21,53 @@ using System.Windows.Shapes;
 
 namespace Vibrante.UserControls
 {
-
     public partial class ComposerTrack : UserControl
     {
-        public List<Point> PointList = new List<Point>();
-        
-        public double pitchZoom = 1;
-        public double pitchPosition = 0;
+        internal Classes.ComposerTab pitchTab = new Classes.ComposerTab()
+        {
+            unitSymbol = "Hz",
+            mainColor = new SolidColorBrush(Color.FromRgb(255, 85, 66)),
+            verticalZoom = 1,
+            verticalPosition = 0,
+            unitsPerGrad = 100,
+            pixelsPerGrad = 20,
+            minValue = 0,
+            maxValue = double.PositiveInfinity,
+        };
 
-        //internal Point lastMiddleClickPosition = new Point(0, 0);
-        //internal double lastVScaleBarClickPosition = 0;
+        internal Classes.ComposerTab volumeTab = new Classes.ComposerTab()
+        {
+            unitSymbol = "%",
+            mainColor = new SolidColorBrush(Color.FromRgb(19, 185, 75)),
+            verticalZoom = 1,
+            verticalPosition = 0,
+            unitsPerGrad = 20,
+            minValue = 0,
+            maxValue = 100,
+        };
 
-        //private Point? MiddleClickPosition = null;
-        
+        internal Classes.ComposerTab panningTab = new Classes.ComposerTab()
+        {
+            unitSymbol = "%",
+            mainColor = new SolidColorBrush(Color.FromRgb(54, 111, 224)),
+            verticalZoom = 1,
+            verticalPosition = -100,
+            unitsPerGrad = 20,
+            minValue = -100,
+            maxValue = 100,
+        };
+
+        internal Classes.ComposerTab currentTab;
+
+
+        private ComboBoxItem[] interpolationComboBoxItemsSource;
+
+        // Generation variables are used by the sound generator to store data about the current track during generation.
+        internal int generationVar_CurrentPitchPointIndex = 0;
+        internal double generationVar_CurrentPitchIntegral = 0;
+        internal int generationVar_CurrentVolumePointIndex = 0;
+        internal int generationVar_CurrentPanningPointIndex = 0;
+
         private enum ControlTypes
         {
             PointContainer
@@ -40,15 +75,17 @@ namespace Vibrante.UserControls
 
         public ComposerTrack()
         {
+            currentTab = pitchTab;
+
             InitializeComponent();
+
             UpdateSoundList();
             UpdateInterpolationList();
-
-
         }
 
+
         /// <summary>
-        /// Update the list of signatures available in the ComboBox.
+        /// Update the list of sounds available in the combo box.
         /// </summary>
         public void UpdateSoundList()
         {
@@ -83,50 +120,123 @@ namespace Vibrante.UserControls
             SoundListCB.SelectedIndex = new_index;
         }
 
+        /// <summary>
+        /// Update the list of interpolations available in the combo box.
+        /// </summary>
         public void UpdateInterpolationList()
         {
-            string selection = InterpolationListCB.SelectedValue as string;
-            InterpolationListCB.Items.Clear();
+            string pitchSelection = PitchTab_InterpolationCB.SelectedValue as string;
+            string volumeSelection = VolumeTab_InterpolationCB.SelectedValue as string;
+            string panningSelection = PanningTab_InterpolationCB.SelectedValue as string;
 
-            int new_index = 0;
-            foreach (InterpolationEditor.Static.Interpolation interpolation in InterpolationEditor.Static.DefaultInterpolations)
+            interpolationComboBoxItemsSource = new ComboBoxItem[MainWindow.interpolationEditor.interpolations.Length];
+
+            for (int i = 0; i < MainWindow.interpolationEditor.interpolations.Length; i++)
             {
                 ComboBoxItem item = new ComboBoxItem()
                 {
-                    Content = interpolation.Name,
-                    Tag = interpolation
+                    Content = MainWindow.interpolationEditor.interpolations[i].name,
+                    Tag = MainWindow.interpolationEditor.interpolations[i],
                 };
 
-                if (selection == interpolation.Name)
+                interpolationComboBoxItemsSource[i] = item;
+            }
+
+            PitchTab_InterpolationCB.ItemsSource = interpolationComboBoxItemsSource;
+            VolumeTab_InterpolationCB.ItemsSource = interpolationComboBoxItemsSource;
+            PanningTab_InterpolationCB.ItemsSource = interpolationComboBoxItemsSource;
+
+            if (pitchSelection == null)
+                PitchTab_InterpolationCB.SelectedIndex = 0;
+            else
+                PitchTab_InterpolationCB.SelectedValue = pitchSelection;
+
+            if (volumeSelection == null)
+                VolumeTab_InterpolationCB.SelectedIndex = 0;
+            else
+                VolumeTab_InterpolationCB.SelectedValue = volumeSelection;
+
+            if (panningSelection == null)
+                PanningTab_InterpolationCB.SelectedIndex = 0;
+            else
+                PanningTab_InterpolationCB.SelectedValue = panningSelection;
+        }
+
+
+        /// <summary>
+        /// Insert a point into the current point list in such a way that the list remains sorted according to the time position.
+        /// </summary>
+        public void AddPointToList(double time_position, double value)
+        {
+            bool pointAdded = false;
+
+            // Find at which index to insert it
+            for (int i = 0; i < currentTab.pointList.Count; i++)
+            {
+                // If the time position of the point to add is less than the current point in the list
+                if (time_position < currentTab.pointList[i].X)
                 {
-                    new_index = InterpolationListCB.Items.Add(item);
-                }
-                else
-                {
-                    InterpolationListCB.Items.Add(item);
+                    // Insert the new point before this point
+                    currentTab.pointList.Insert(i, new Point(time_position, value));
+                    pointAdded = true;
+                    break;
                 }
             }
 
-            InterpolationListCB.SelectedIndex = new_index;
+            // If the point has not been added (no other point with a higher temporal position)
+            if (!pointAdded)
+            {
+                currentTab.pointList.Add(new Point(time_position, value));
+            }
         }
-        
+
+        /// <summary>
+        /// Update the coordinates of the point, and change its index if necessary so that the list remains sorted.
+        /// </summary>
+        /// <param name="current_index">Current index of the point in the list.</param>
+        public void MovePoint(int current_index, double new_time_position, double new_value)
+        {
+            // If the point is moved ahead of the previous point, swap the two points
+            if (current_index >= 1 && new_time_position < currentTab.pointList[current_index - 1].X)
+            {
+                currentTab.pointList[current_index] = currentTab.pointList[current_index - 1];
+                currentTab.pointList[current_index - 1] = new Point(new_time_position, new_value);
+                currentTab.clickedPointIndex = current_index - 1;
+            }
+            
+            // If the point is moved after the previous point, swap the two points
+            else if (current_index < currentTab.pointList.Count - 1 && new_time_position > currentTab.pointList[current_index + 1].X)
+            {
+                currentTab.pointList[current_index] = currentTab.pointList[current_index + 1];
+                currentTab.pointList[current_index + 1] = new Point(new_time_position, new_value);
+                currentTab.clickedPointIndex = current_index + 1;
+            }
+
+            // Else just update the point
+            else
+            {
+                currentTab.pointList[current_index] = new Point(new_time_position, new_value);
+            }
+        }
 
         public void UpdateVerticalScaleBar()
         {
             VerticalScaleBar.Children.Clear();
 
-            double firstPixel = Composer.Static.ConvertUnitToPixels(pitchPosition, Composer.Static.hzPerPixel, pitchZoom); // Index of the first pixel to draw if the scale bar starts at 0.
-            int graduationSize = 20; // Size of a graduation in pixels, don't take zoom into account yet
+            double unitsPerGradWithZoom = currentTab.unitsPerGrad * currentTab.verticalZoom;
 
-            int firstGraduation = (int)(Math.Floor(firstPixel / graduationSize) * graduationSize); // Index of the pixel of the first graduation if the scale bar starts at 0. Value <= 0.
-            int lastGraduation = (int)(Math.Ceiling((firstPixel + VerticalScaleBar.ActualHeight) / graduationSize) * graduationSize);
+            double firstGraduation = CommonUtils.RoundToPreviousMultiple(currentTab.verticalPosition, unitsPerGradWithZoom);
+            double valueCount = unitsPerGradWithZoom * VerticalScaleBar.ActualHeight / currentTab.pixelsPerGrad;
+            double lastGraduation = CommonUtils.RoundToNextMultiple(currentTab.verticalPosition + valueCount, unitsPerGradWithZoom);
 
-            // Foreach graduation, draw a horizontal line and a label with the frequency
-            for (int i = firstGraduation; i < lastGraduation; i += graduationSize)
+            int counter = 0;
+            for (double i = firstGraduation; i <= lastGraduation; i += unitsPerGradWithZoom, counter++)
             {
-                Label freqLabel = new Label()
+                double pixelPosition = currentTab.UnitToPixel(i - currentTab.verticalPosition);
+
+                Label unitLabel = new Label()
                 {
-                    Content = Composer.Static.ConvertPixelsToUnit(i, Composer.Static.hzPerPixel, pitchZoom).ToString(),
+                    Content = i.ToString(),
                     Foreground = (SolidColorBrush)Application.Current.Resources["TextForeground"],
                     IsHitTestVisible = false,
                     VerticalAlignment = VerticalAlignment.Bottom,
@@ -134,12 +244,12 @@ namespace Vibrante.UserControls
                     FontSize = 10
                 };
 
-                freqLabel.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity)); // Needed to center the label
-                Canvas.SetBottom(freqLabel, i - firstPixel - freqLabel.DesiredSize.Height / 2);
+                unitLabel.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity)); // Needed to center the label vertically
+                Canvas.SetBottom(unitLabel, pixelPosition - unitLabel.DesiredSize.Height / 2);
 
-                VerticalScaleBar.Children.Add(freqLabel);
-                
-                Line line = new Line()
+                VerticalScaleBar.Children.Add(unitLabel);
+
+                Line gradLine = new Line()
                 {
                     X1 = VerticalScaleBar.ActualWidth / 1.2,
                     X2 = VerticalScaleBar.ActualWidth,
@@ -151,143 +261,385 @@ namespace Vibrante.UserControls
                     VerticalAlignment = VerticalAlignment.Bottom,
                     HorizontalAlignment = HorizontalAlignment.Left,
                 };
-                Canvas.SetBottom(line, i - firstPixel);
-                VerticalScaleBar.Children.Add(line);
+                Canvas.SetBottom(gradLine, pixelPosition);
+                VerticalScaleBar.Children.Add(gradLine);
             }
         }
 
-        public void UpdateCanvas()
+        public void UpdateCanvas(int lineSegmentLength = 5, bool enablePointTooltip = false)
         {
-            SoundCanvas.Children.Clear();
-            UpdateCanvasPoints();
-            UpdateCanvasLines();
-        }
-
-        public void UpdateCanvasPoints()
-        {
-            int index = 0;
-            foreach (Point point in PointList)
+            Brush color = currentTab.constantValue != null ? (SolidColorBrush)Resources["DisabledColor"] : currentTab.mainColor;
+            
+            void DrawPoint(double x, double y, int i)
             {
-                int i = index;
-                
-                double x = Composer.Static.ConvertUnitToPixels(point.X - Composer.Static.currentComposer.timePosition, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom);
-                double y = SoundCanvas.ActualHeight - Composer.Static.HzToPixel(point.Y - pitchPosition, pitchZoom);
-
-                Grid point_container = new Grid()
+                Grid pointContainer = new Grid()
                 {
                     Width = Properties.Settings.Default.SoundCompositer_DotSize * 2,
                     Height = Properties.Settings.Default.SoundCompositer_DotSize * 2,
                     Background = Brushes.Transparent,
                     Margin = new Thickness(x - Properties.Settings.Default.SoundCompositer_DotSize, y - Properties.Settings.Default.SoundCompositer_DotSize, 0, 0),
-                    Tag = new object[] { ControlTypes.PointContainer, i }
+                    Tag = new object[] { ControlTypes.PointContainer, i },
+                    Children =
+                    {
+                        new Ellipse()
+                        {
+                            Fill = color,
+                            Height = Properties.Settings.Default.SoundCompositer_DotSize,
+                            Width = Properties.Settings.Default.SoundCompositer_DotSize,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            IsHitTestVisible = false
+                        }
+                    }
                 };
 
-
-                point_container.MouseDown += (s, ev) =>
+                if (enablePointTooltip)
                 {
-                    if (ev.LeftButton == MouseButtonState.Pressed)
+                    pointContainer.ToolTip = "X: " + currentTab.pointList[i].X + "ms Y: " + currentTab.pointList[i].Y + currentTab.unitSymbol;
+                }
+
+                pointContainer.MouseDown += (s, ev) =>
+                {
+                    if (ev.LeftButton == MouseButtonState.Pressed) // Select the point
                     {
-                        selected_point = i;
+                        currentTab.clickedPointIndex = i;
                     }
-                    else if (ev.RightButton == MouseButtonState.Pressed)
+
+                    else if (ev.RightButton == MouseButtonState.Pressed) // Remove the point on right click
                     {
-                        PointList.RemoveAt(i);
+                        currentTab.pointList.RemoveAt(i);
                         UpdateCanvas();
                     }
                 };
-                
-                point_container.MouseMove += (s, ev) =>
+
+                pointContainer.MouseMove += (s, ev) =>
                 {
-                    if (ev.RightButton == MouseButtonState.Pressed)
+                    if (ev.RightButton == MouseButtonState.Pressed) // Remove the point on mouseover with right button pressed
                     {
-                        PointList.RemoveAt(i);
+                        currentTab.pointList.RemoveAt(i);
                         UpdateCanvas();
                     }
                 };
 
                 // Pass the MouseWheel event of the point to the MouseWheel event of the canvas if the point is selected (doesn't transmit the event on its own)
-                point_container.MouseWheel += (e, ev) =>
+                pointContainer.MouseWheel += (s, ev) =>
                 {
-                    if (ev.LeftButton == MouseButtonState.Pressed && selected_point != -1)
+                    if (ev.LeftButton == MouseButtonState.Pressed && currentTab.clickedPointIndex != null)
                     {
-                        CanvasMouseWheel(e, ev);
+                        CanvasMouseWheel(s, ev);
                     }
                 };
-
-                Ellipse ellipse = new Ellipse()
+                
+                // Pass the MouseUp event of the point to the MouseUp event of the canvas (doesn't transmit the event on its own)
+                pointContainer.MouseUp += (s, ev) =>
                 {
-                    Fill = Brushes.Red,
-                    Height = Properties.Settings.Default.SoundCompositer_DotSize,
-                    Width = Properties.Settings.Default.SoundCompositer_DotSize,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    IsHitTestVisible = false
+                    CanvasMouseButtonUp(s, ev);
                 };
+                
+                SoundCanvas.Children.Add(pointContainer);
+            }
+            
+            void DrawLine(Point point1, Point point2)
+            {
+                // If the interpolation function has a custom line drawing function, use it
+                if (currentTab.interpolation.customLineDrawingFunction != null)
+                {
+                    foreach (FrameworkElement element in currentTab.interpolation.customLineDrawingFunction(point1, point2, color))
+                    {
+                        SoundCanvas.Children.Add(element);
+                    }
+                }
 
-                point_container.Children.Add(ellipse);
-                SoundCanvas.Children.Add(point_container);
+                // Otherwise, draw the line by segments
+                else
+                {
+                    // Number of line segments between the two points
+                    int segmentsCount = (int)Math.Floor((point2.X - point1.X) / lineSegmentLength);
+
+                    // For each segment
+                    for (int i = 0; i < segmentsCount; i++)
+                    {
+                        double startX = point1.X + i * lineSegmentLength;
+                        double startY = currentTab.interpolation.function(point1, point2, startX);
+                        double endX = i < segmentsCount - 1 ? point1.X + (i + 1) * lineSegmentLength : point2.X;
+                        double endY = currentTab.interpolation.function(point1, point2, endX);
+
+                        // Draw the line
+                        Line line = new Line()
+                        {
+                            X1 = startX,
+                            Y1 = startY,
+                            X2 = endX,
+                            Y2 = endY,
+                            Stroke = color,
+                            StrokeThickness = 2,
+                            IsHitTestVisible = false
+                        };
+
+                        SoundCanvas.Children.Add(line);
+                    }
+
+                    // If points are too close to draw a segment, draw a straight line
+                    if (segmentsCount == 0)
+                    {
+                        Line line = new Line()
+                        {
+                            X1 = point1.X,
+                            Y1 = point1.Y,
+                            X2 = point2.X,
+                            Y2 = point2.Y,
+                            Stroke = color,
+                            StrokeThickness = 2,
+                            IsHitTestVisible = false
+                        };
+
+                        SoundCanvas.Children.Add(line);
+                    }
+                }
+
+            }
+
+            SoundCanvas.Children.Clear();
+            
+            
+            int index = 0; // Index of the current point
+            double previousX = 0; // X coordinate of the previous point
+            double previousY = 0; // Y coordinate of the previous point
+
+            foreach (Point point in currentTab.pointList)
+            {
+                // Coordinates in pixels of the point
+                double x = Composer.Static.ConvertUnitToPixels(point.X - MainWindow.composer.timePosition, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                double y = SoundCanvas.ActualHeight - currentTab.UnitToPixel(point.Y - currentTab.verticalPosition);
+                
+                DrawPoint(x, y, index);
+
+                // If the current point is not the first, draw a line between this point and the previous one
+                if (index > 0)
+                {
+                    DrawLine(new Point(previousX, previousY), new Point(x, y));
+                }
+
+                // Update the previous point coordinates
+                previousX = x;
+                previousY = y;
 
                 index++;
             }
-        }
-        
-        public void UpdateCanvasLines(int resolution = 5)
-        {
-            Point[] SortedPointList = PointList.OrderBy(p => p.X).ToArray();
-            for (int i = 0; i < SortedPointList.Length; i++)
-            {
-                SortedPointList[i] = new Point(Composer.Static.ConvertUnitToPixels(SortedPointList[i].X - Composer.Static.currentComposer.timePosition, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom), SoundCanvas.ActualHeight - Composer.Static.HzToPixel(SortedPointList[i].Y - pitchPosition, pitchZoom));
-            }
 
-            Func<double, double, double, double, double, double> line_equation = ((InterpolationListCB.SelectedItem as ComboBoxItem).Tag as InterpolationEditor.Static.Interpolation).InterpolationFunction;
-
-            for (int i = 0; i < SortedPointList.Length - 1; i++)
+            // If the value is constant, draw a line at the constant value
+            if (currentTab.constantValue != null)
             {
-                int segments_count = (int)Math.Ceiling((SortedPointList[i + 1].X - SortedPointList[i].X) / resolution);
-                for (int j = 0; j < segments_count; j++)
+                double y = SoundCanvas.ActualHeight - currentTab.UnitToPixel(currentTab.constantValue.Value - currentTab.verticalPosition);
+
+                SoundCanvas.Children.Add(new Line()
                 {
-                    double x1 = SortedPointList[i].X + j * resolution;
-                    double x2 = j < segments_count-1 ? (SortedPointList[i].X + (j + 1) * resolution) : SortedPointList[i + 1].X;
-                    double y1 = line_equation(SortedPointList[i].X, SortedPointList[i + 1].X, SortedPointList[i].Y, SortedPointList[i + 1].Y, x1);
-                    double y2 = line_equation(SortedPointList[i].X, SortedPointList[i + 1].X, SortedPointList[i].Y, SortedPointList[i + 1].Y, x2);
+                    X1 = 0,
+                    Y1 = y,
+                    X2 = SoundCanvas.ActualWidth,
+                    Y2 = y,
+                    Stroke = currentTab.mainColor,
+                    StrokeThickness = 2,
+                    IsHitTestVisible = false
+                });
+            }
+            
+            // If the current tab is the volume or the panning tab, draw hoizontal lines before the first point and after the last point
+            if (currentTab == volumeTab || currentTab == panningTab)
+            {
+                if (currentTab.pointList.Count >= 1)
+                {
+                    Point firstPoint = currentTab.pointList.First();
+                    Point lastPoint = currentTab.pointList.Last();
 
-                    Line line = new Line()
+                    double x1 = Composer.Static.ConvertUnitToPixels(firstPoint.X - MainWindow.composer.timePosition, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                    double y1 = SoundCanvas.ActualHeight - currentTab.UnitToPixel(firstPoint.Y - currentTab.verticalPosition);
+                    double x2 = Composer.Static.ConvertUnitToPixels(lastPoint.X - MainWindow.composer.timePosition, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                    double y2 = SoundCanvas.ActualHeight - currentTab.UnitToPixel(lastPoint.Y - currentTab.verticalPosition);
+
+                    SoundCanvas.Children.Add(new Line()
                     {
-                        X1 = x1,
-                        X2 = x2,
+                        X1 = 0,
                         Y1 = y1,
-                        Y2 = y2,
-                        Stroke = Brushes.Red,
+                        X2 = x1,
+                        Y2 = y1,
+                        Stroke = color,
                         StrokeThickness = 2,
                         IsHitTestVisible = false
-                    };
+                    });
 
-                    SoundCanvas.Children.Add(line);
-                    
+                    SoundCanvas.Children.Add(new Line()
+                    {
+                        X1 = x2,
+                        Y1 = y2,
+                        X2 = SoundCanvas.ActualWidth,
+                        Y2 = y2,
+                        Stroke = color,
+                        StrokeThickness = 2,
+                        IsHitTestVisible = false
+                    });
                 }
 
             }
 
         }
 
-        int selected_point = -1;
+     
 
+        #region Events
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+            // Calculate the number of pixels per graduation required to display all values in the vertical scale bar
+            volumeTab.pixelsPerGrad = VerticalScaleBar.ActualHeight * (volumeTab.unitsPerGrad / (volumeTab.maxValue - volumeTab.minValue));
+            panningTab.pixelsPerGrad = VerticalScaleBar.ActualHeight * (panningTab.unitsPerGrad / (panningTab.maxValue - panningTab.minValue));
+
+            pitchTab.UpdateCoefficients();
+            volumeTab.UpdateCoefficients();
+            panningTab.UpdateCoefficients();
+
             UpdateVerticalScaleBar();
         }
         private void UserControl_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            UpdateCanvas();
             UpdateVerticalScaleBar();
         }
 
-        private void CanvasMouseClick(object sender, MouseButtonEventArgs e)
+        private void TrackName_MouseLeftDown(object sender, MouseButtonEventArgs e)
+        {
+            // Select all the text in the textbox when double-clicking on it
+            if (e.ClickCount == 2)
+            {
+                ((TextBox)sender).SelectAll();
+            }
+        }
+        private void TrackName_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // If the user presses the Enter key, unfocus the textbox
+            if (e.Key == Key.Enter)
+            {
+                MainWindow.keyboardfocus.Focus();
+            }
+        }
+
+        private void PitchTab_MouseLeftDown(object sender, MouseButtonEventArgs e)
+        {
+            TabController.SelectedIndex = 0;
+            currentTab = pitchTab;
+
+            StereoDisabledAlert_Grid.Visibility = Visibility.Hidden;
+
+            UpdateCanvas();
+            UpdateVerticalScaleBar();
+        }
+        private void VolumeTab_MouseLeftDown(object sender, MouseButtonEventArgs e)
+        {
+            TabController.SelectedIndex = 1;
+            currentTab = volumeTab;
+            
+            StereoDisabledAlert_Grid.Visibility = Visibility.Hidden;
+
+            UpdateCanvas();
+            UpdateVerticalScaleBar();
+        }
+        private void PanningTab_MouseLeftDown(object sender, MouseButtonEventArgs e)
+        {
+            TabController.SelectedIndex = 2;
+            currentTab = panningTab;
+
+            // Update the visibility of the stereo disabled alert
+            StereoDisabledAlert_Grid.Visibility = MainWindow.composer.stereoEnabled ? Visibility.Hidden : Visibility.Visible;
+
+            UpdateCanvas();
+            UpdateVerticalScaleBar();
+        }
+
+        private void PitchTab_InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            pitchTab.interpolation = (Classes.Interpolation)((ComboBoxItem)PitchTab_InterpolationCB.SelectedItem).Tag;
+            UpdateCanvas();
+        }
+        
+        private void VolumeTab_ConstantCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (VolumeTab_ConstantTextBox != null)
+            {
+                VolumeTab_ConstantTextBox.IsEnabled = VolumeTab_ConstantCheckBox.IsChecked == true;
+            }
+            
+            
+            if (VolumeTab_ConstantCheckBox.IsChecked == true)
+            {
+                volumeTab.constantValue = VolumeTab_ConstantTextBox?.Value;
+            }
+            else
+            {
+                volumeTab.constantValue = null;
+            }
+            
+            if (SoundCanvas != null)
+            {
+                UpdateCanvas();
+            }
+        }
+        private void VolumeTab_ConstantTextBox_ValueChanged(object sender, RoutedEventArgs e)
+        {
+            volumeTab.constantValue = VolumeTab_ConstantTextBox.Value;
+            
+            if (SoundCanvas != null)
+            {
+                UpdateCanvas();
+            }
+        }
+        private void VolumeTab_InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            volumeTab.interpolation = (Classes.Interpolation)((ComboBoxItem)VolumeTab_InterpolationCB.SelectedItem).Tag;
+            UpdateCanvas();
+        }
+
+        private void PanningTab_ConstantCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (PanningTab_ConstantTextBox != null)
+            {
+                PanningTab_ConstantTextBox.IsEnabled = PanningTab_ConstantCheckBox.IsChecked == true;
+            }
+
+
+            if (PanningTab_ConstantCheckBox.IsChecked == true)
+            {
+                panningTab.constantValue = PanningTab_ConstantTextBox?.Value;
+            }
+            else
+            {
+                panningTab.constantValue = null;
+            }
+
+            if (SoundCanvas != null)
+            {
+                UpdateCanvas();
+            }
+        }
+        private void PanningTab_ConstantTextBox_ValueChanged(object sender, RoutedEventArgs e)
+        {
+            panningTab.constantValue = PanningTab_ConstantTextBox.Value;
+
+            if (SoundCanvas != null)
+            {
+                UpdateCanvas();
+            }
+        }
+        private void PanningTab_InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            panningTab.interpolation = (Classes.Interpolation)((ComboBoxItem)PanningTab_InterpolationCB.SelectedItem).Tag;
+            UpdateCanvas();
+        }
+
+        private void CanvasMouseClick(object sender, MouseButtonEventArgs e) // I don't remember why I did that, I will check later
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 CanvasMouseLeftClick(sender, e);
             }
-
         }
         
         private void CanvasMouseLeftClick(object sender, MouseButtonEventArgs e)
@@ -295,42 +647,51 @@ namespace Vibrante.UserControls
             // Add a point
             if (SoundCanvas.IsMouseDirectlyOver)
             {
-                double position_in_ms = Math.Round(Composer.Static.ConvertPixelsToUnit(e.GetPosition(SoundCanvas).X, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom), 2) + Composer.Static.currentComposer.timePosition;
-                double position_in_hz = Math.Round(Composer.Static.PixelToHz(SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y, pitchZoom), 2) + pitchPosition;
-                PointList.Add(new Point(position_in_ms, position_in_hz));
+                double positionInMs = Math.Round(Composer.Static.ConvertPixelsToUnit(e.GetPosition(SoundCanvas).X, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom), 2) + MainWindow.composer.timePosition;
+                double positionInUnit = Math.Round(currentTab.PixelToUnit(SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y) + currentTab.verticalPosition, 2);
+
+                if (MainWindow.composer.snapToGridEnabled)
+                {
+                    positionInMs = CommonUtils.RoundToNearestMultiple(positionInMs, MainWindow.composer.SnapToGridSpacingValueX_TextBox.Value);
+                    positionInUnit = CommonUtils.RoundToNearestMultiple(positionInUnit, MainWindow.composer.SnapToGridSpacingValueY_TextBox.Value);
+                }
+
+                AddPointToList(positionInMs, positionInUnit);
                 UpdateCanvas();
 
-                selected_point = -1;
+                currentTab.clickedPointIndex = null;
             }
         }
         
         private void CanvasMouseMove(object sender, MouseEventArgs e)
         {
-            Point MousePosition = new Point(Math.Round(e.GetPosition(SoundCanvas).X, 0), Math.Round(e.GetPosition(SoundCanvas).Y, 0));
+            Point mousePosition = new Point(Math.Round(e.GetPosition(SoundCanvas).X, 0), Math.Round(e.GetPosition(SoundCanvas).Y, 0));
             
             //Update PositionLabel
-            double position_in_ms = Math.Round(Composer.Static.ConvertPixelsToUnit(MousePosition.X, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom), 2) + Composer.Static.currentComposer.timePosition;
-            double position_in_hz = Math.Round(Composer.Static.PixelToHz(SoundCanvas.ActualHeight - MousePosition.Y, pitchZoom), 2) + pitchPosition;
-
-            if (Composer.Static.currentComposer.snapToGridEnabled)
-            {
-                position_in_ms = MainWindow.RoundToNearestMultiple(position_in_ms, Composer.Static.currentComposer.snapToGridSpacingValueX);
-                position_in_hz = MainWindow.RoundToNearestMultiple(position_in_hz, Composer.Static.currentComposer.snapToGridSpacingValueY);
-            }
+            double positionInMs = Math.Round(Composer.Static.ConvertPixelsToUnit(mousePosition.X, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom), 2) + MainWindow.composer.timePosition;
+            double positionInUnit = Math.Round(currentTab.PixelToUnit(SoundCanvas.ActualHeight - mousePosition.Y) + currentTab.verticalPosition, 2);
             
-            PositionLabel.Content = "X: " + position_in_ms + "ms Y: " + position_in_hz + "Hz";
+            if (MainWindow.composer.snapToGridEnabled)
+            {
+                positionInMs = CommonUtils.RoundToNearestMultiple(positionInMs, MainWindow.composer.SnapToGridSpacingValueX_TextBox.Value);
+                positionInUnit = CommonUtils.RoundToNearestMultiple(positionInUnit, MainWindow.composer.SnapToGridSpacingValueY_TextBox.Value);
+            }
+
+            PositionLabel.Content = "X: " + positionInMs + "ms Y: " + positionInUnit + currentTab.unitSymbol;
+
 
             //Move a point
-            if (e.LeftButton == MouseButtonState.Pressed && selected_point != -1)
+            if (e.LeftButton == MouseButtonState.Pressed && currentTab.clickedPointIndex != null)
             {
-                PointList[selected_point] = new Point(position_in_ms, position_in_hz);
-                UpdateCanvas();
+                MovePoint((int)currentTab.clickedPointIndex, positionInMs, positionInUnit);
+                UpdateCanvas(10);
             }
         }
 
         private void CanvasMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
-            selected_point = -1;
+            currentTab.clickedPointIndex = null;
+            UpdateCanvas(enablePointTooltip:true);
         }
 
         private void CanvasMouseEnter(object sender, MouseEventArgs e)
@@ -343,41 +704,47 @@ namespace Vibrante.UserControls
             PositionLabel.BeginAnimation(OpacityProperty, new DoubleAnimation(1, 0, TimeSpan.FromSeconds(0.1)));
         }
 
+        
         private void VerticalScaleBar_MouseClick(object sender, MouseButtonEventArgs e)
         {
-            Composer.Static.currentComposer.clickedElement = VerticalScaleBar;
-            Composer.Static.currentComposer.lastMousePosition = e.GetPosition(Composer.Static.currentComposer.MainGrid);
-            //lastVScaleBarClickPosition = e.GetPosition(Composer.Static.currentComposer.MainGrid).Y;
+            MainWindow.composer.clickedElement = VerticalScaleBar;
+            MainWindow.composer.lastMousePosition = e.GetPosition(MainWindow.composer.MainGrid);
         }
+        
 
-        private void InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            UpdateCanvas();
-        }
+
+
 
         private void CanvasMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // Disable zooming and panning for tabs other than "Pitch" (because of a rounding bug with bounds that I can't solve)
+            if (currentTab != pitchTab)
+            {
+                return;
+            }
+            
             bool isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl);
             bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift);
             
-            // Ctrl + Wheel => Pitch Zoom
+            // Ctrl + Wheel => Vertical Zoom
             if (isCtrlPressed && !isShiftPressed)
             {
                 double mousePositionInPixels = SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y;
-                double mousePositionInHertz1 = Composer.Static.PixelToHz(mousePositionInPixels, pitchZoom);
+                double mousePositionInUnitBefore = currentTab.PixelToUnit(mousePositionInPixels) + currentTab.verticalPosition;
 
-                double divider = e.Delta < 0 ? 0.5 : 2; 
+                double divider = e.Delta < 0 ? 0.5 : 2;
 
-                if (pitchZoom / divider >= 0.01)
+                if (currentTab.verticalZoom / divider >= 0.01)
                 {
-                    pitchZoom /= divider;
+                    currentTab.verticalZoom /= divider;
                 }
+                    
 
-                double mousePositionInHertz2 = Composer.Static.PixelToHz(mousePositionInPixels, pitchZoom);
+                double mousePositionInUnitAfter = currentTab.PixelToUnit(mousePositionInPixels) + currentTab.verticalPosition;
+
+                currentTab.verticalPosition += (mousePositionInUnitBefore - mousePositionInUnitAfter);
+                currentTab.verticalPosition = (currentTab.verticalPosition < 0) ? 0 : currentTab.verticalPosition;
                 
-                pitchPosition += (mousePositionInHertz1 - mousePositionInHertz2);
-                pitchPosition = (pitchPosition < 0) ? 0 : pitchPosition;
-
                 UpdateVerticalScaleBar();
             }
 
@@ -385,57 +752,51 @@ namespace Vibrante.UserControls
             else if (isCtrlPressed && isShiftPressed)
             {
                 double mousePositionInPixels = e.GetPosition(SoundCanvas).X;
-                double mousePositionInMs1 = Composer.Static.ConvertPixelsToUnit(mousePositionInPixels, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom);
+                double mousePositionInMsBefore = Composer.Static.ConvertPixelsToUnit(mousePositionInPixels, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
 
                 double divider = e.Delta < 0 ? 0.5 : 2;
 
-                if (Composer.Static.currentComposer.timeZoom / divider >= 0.01)
+                if (MainWindow.composer.timeZoom / divider >= 0.01)
                 {
-                    Composer.Static.currentComposer.timeZoom /= divider;
+                    MainWindow.composer.timeZoom /= divider;
                 }
 
-                double mousePositionInMs2 = Composer.Static.ConvertPixelsToUnit(mousePositionInPixels, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom);
+                double mousePositionInMsAfter = Composer.Static.ConvertPixelsToUnit(mousePositionInPixels, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
 
-                Composer.Static.currentComposer.timePosition += (mousePositionInMs1 - mousePositionInMs2);
-                Composer.Static.currentComposer.timePosition = (Composer.Static.currentComposer.timePosition < 0) ? 0 : Composer.Static.currentComposer.timePosition;
+                MainWindow.composer.timePosition += (mousePositionInMsBefore - mousePositionInMsAfter);
+                MainWindow.composer.timePosition = (MainWindow.composer.timePosition < 0) ? 0 : MainWindow.composer.timePosition;
 
-                Composer.Static.currentComposer.UpdateTimeline();
-                Composer.Static.currentComposer.UpdateEveryTrackCanvas();
+                MainWindow.composer.UpdateTimeline();
+                MainWindow.composer.UpdateEveryTrackCanvas();
             }
 
             // Shift + Wheel => Time Panning
             else if (isShiftPressed)
             {
                 int deltaXInPixels = (int)Math.Round(e.Delta * Settings.Default.HorizontalPanningMouseWheelSensi);
-                double deltaXInMs = Composer.Static.ConvertPixelsToUnit(deltaXInPixels, Composer.Static.msPerPixel, Composer.Static.currentComposer.timeZoom);
+                double deltaXInMs = Composer.Static.ConvertPixelsToUnit(deltaXInPixels, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
 
-                if (Composer.Static.currentComposer.timePosition + deltaXInMs < 0)
+                if (MainWindow.composer.timePosition + deltaXInMs < 0)
                 {
-                    Composer.Static.currentComposer.timePosition = 0;
+                    MainWindow.composer.timePosition = 0;
                 }
                 else
                 {
-                    Composer.Static.currentComposer.timePosition += deltaXInMs;
+                    MainWindow.composer.timePosition += deltaXInMs;
                 }
 
-                Composer.Static.currentComposer.UpdateTimeline();
-                Composer.Static.currentComposer.UpdateEveryTrackCanvas();
+                MainWindow.composer.UpdateTimeline();
+                MainWindow.composer.UpdateEveryTrackCanvas();
             }
 
-            // Only Wheel => Pitch Panning
+            // Only Wheel => Vertical Panning
             else
             {
-                int deltaYInPixels = (int)Math.Round(e.Delta * Settings.Default.VerticalPanningMouseWheelSensi);
-                double deltaYInHz = Composer.Static.PixelToHz(deltaYInPixels, pitchZoom);
+                double delta = (currentTab.unitsPerGrad / 2) * currentTab.verticalZoom * Math.Sign(e.Delta);
 
-                if (pitchPosition + deltaYInHz < 0)
-                {
-                    pitchPosition = 0;
-                }
-                else
-                {
-                    pitchPosition = pitchPosition + deltaYInHz;
-                }
+                // Clamp the position between the min and max values (max not implemented due to a rounding bug that I can't solve)
+                currentTab.verticalPosition = Math.Max(currentTab.minValue, currentTab.verticalPosition + delta);
+                //CurrentPosition = Math.Min(CurrentPosition, CurrentMinMaxValues.Item2 - PixelToVerticalsUnits(SoundCanvas.ActualHeight));
 
                 UpdateVerticalScaleBar();
             }
@@ -443,5 +804,9 @@ namespace Vibrante.UserControls
             CanvasMouseMove(sender, e); // Simulate mouse movement to refresh UI
             UpdateCanvas();
         }
+
+        #endregion
+
+
     }
 }

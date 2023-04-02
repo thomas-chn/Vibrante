@@ -14,20 +14,29 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-
-
+using Vibrante.UserControls;
+using static Vibrante.UserControls.ComposerTrack;
 
 namespace Vibrante
 {
-    /// <summary>
-    /// Logique d'interaction pour MainWindow.xaml
-    /// </summary>
+
     public partial class MainWindow : Window
     {
+        // Used to receive keyboard focus
+        public static TextBox keyboardfocus = new TextBox()
+        {
+            Height = 0,
+            Width = 0
+        };
+        
+        public static Composer composer = new Composer();
+        public static InterpolationEditor interpolationEditor = new InterpolationEditor();
+
         public MainWindow()
         {
             InitializeComponent();
-            ContentContainer.Children.Add(new UserControls.Composer());
+            ContentContainer.Children.Add(keyboardfocus);
+            ContentContainer.Children.Add(composer);
         }
 
         // Set the window title
@@ -40,17 +49,9 @@ namespace Vibrante
             ((MainWindow)Application.Current.MainWindow).Title = content;
         }
 
-        // Round a value to the nearest multiple of another value
-        public static double RoundToNearestMultiple(double value, int multiple)
-        {
-            return Math.Round(value / multiple) * multiple;
-        }
-        public static double RoundToNearestMultiple(double value, double multiple)
-        {
-            return Math.Round(value / multiple) * multiple;
-        }
+
 
     }
 
-    
+
 }

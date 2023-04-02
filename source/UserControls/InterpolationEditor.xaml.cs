@@ -15,11 +15,134 @@ using System.Windows.Shapes;
 
 namespace Vibrante.UserControls
 {
-    /// <summary>
-    /// Logique d'interaction pour InterpolationEditor.xaml
-    /// </summary>
+
     public partial class InterpolationEditor : UserControl
     {
+
+        /// <summary>
+        /// Array containing all the interpolations.
+        /// </summary>
+        internal Classes.Interpolation[] interpolations = new Classes.Interpolation[]
+        {
+            new Classes.Interpolation()
+            {
+                name = "Linear",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) => point1.Y + (point2.Y - point1.Y) * (x - point1.X) / (point2.X - point1.X)),
+                customLineDrawingFunction = new Classes.Interpolation.drawLineFunction((point1, point2, color) =>
+                {
+                    return new Line[]
+                    {
+                        new Line()
+                        {
+                            X1 = point1.X,
+                            Y1 = point1.Y,
+                            X2 = point2.X,
+                            Y2 = point2.Y,
+                            Stroke = color,
+                            StrokeThickness = 2,
+                            IsHitTestVisible = false
+                        }
+                    };
+                })
+            },
+
+            new Classes.Interpolation()
+            {
+                name = "Constant",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) => x < point2.X ? point1.Y : point2.Y),
+                customLineDrawingFunction = new Classes.Interpolation.drawLineFunction((point1, point2, color) =>
+                {
+                    return new Line[]
+                    {
+                        new Line()
+                        {
+                            X1 = point1.X,
+                            Y1 = point1.Y,
+                            X2 = point2.X,
+                            Y2 = point1.Y,
+                            Stroke = color,
+                            StrokeThickness = 2,
+                            IsHitTestVisible = false
+                        },
+                        
+                        new Line()
+                        {
+                            X1 = point2.X,
+                            Y1 = point1.Y,
+                            X2 = point2.X,
+                            Y2 = point2.Y,
+                            Stroke = color,
+                            StrokeThickness = 2,
+                            IsHitTestVisible = false
+                        }
+                    };
+                })
+            },
+
+            new Classes.Interpolation()
+            {
+                name = "Ease-In 2°",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
+                {
+                    double t = (x - point1.X) / (point2.X - point1.X);
+                    double y = point1.Y + (point2.Y - point1.Y) * Math.Pow(t, 2);
+                    return y;
+                }),
+            },
+
+            new Classes.Interpolation()
+            {
+                name = "Ease-In 10°",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
+                {
+                    double t = (x - point1.X) / (point2.X - point1.X);
+                    double y = point1.Y + (point2.Y - point1.Y) * Math.Pow(t, 10);
+                    return y;
+                }),
+            },
+        
+            new Classes.Interpolation()
+            {
+                name = "Ease-Out 2°",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
+                {
+                    double t = (x - point1.X) / (point2.X - point1.X);
+                    double y = point1.Y + (point2.Y - point1.Y) * (1 - Math.Pow(1 - t, 2));
+                    return y;
+                }),
+            },
+
+            new Classes.Interpolation()
+            {
+                name = "Ease-Out 10°",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
+                {
+                    double t = (x - point1.X) / (point2.X - point1.X);
+                    double y = point1.Y + (point2.Y - point1.Y) * (1 - Math.Pow(1 - t, 10));
+                    return y;
+                }),
+            },
+
+            new Classes.Interpolation()
+            {
+                name = "Ease-In-Out",
+                function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
+                {
+                    double t = (x - point1.X) / (point2.X - point1.X);
+                    if (t < 0.5)
+                    {
+                        return point1.Y + (point2.Y - point1.Y) * Math.Pow(t, 2) * 2;
+                    }
+                    else
+                    {
+                        t = 1 - t;
+                        return point2.Y - (point2.Y - point1.Y) * Math.Pow(t, 2) * 2;
+                    }
+                }),
+            }
+        };
+
+        
         public InterpolationEditor()
         {
             InitializeComponent();

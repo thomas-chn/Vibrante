@@ -46,5 +46,101 @@ namespace Vibrante {
                 this["HorizontalPanningMouseWheelSensi"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
+        public double TimelineMsPerPixel {
+            get {
+                return ((double)(this["TimelineMsPerPixel"]));
+            }
+            set {
+                this["TimelineMsPerPixel"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("50")]
+        public int TimelinePixelPerGrad {
+            get {
+                return ((int)(this["TimelinePixelPerGrad"]));
+            }
+            set {
+                this["TimelinePixelPerGrad"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public double PitchScaleHzPerPixel {
+            get {
+                return ((double)(this["PitchScaleHzPerPixel"]));
+            }
+            set {
+                this["PitchScaleHzPerPixel"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("20")]
+        public double PitchScalePixelPerGrad {
+            get {
+                return ((double)(this["PitchScalePixelPerGrad"]));
+            }
+            set {
+                this["PitchScalePixelPerGrad"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public double VolumeScalePercentPerPixel {
+            get {
+                return ((double)(this["VolumeScalePercentPerPixel"]));
+            }
+            set {
+                this["VolumeScalePercentPerPixel"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("20")]
+        public double VolumeScalePixelPerGrad {
+            get {
+                return ((double)(this["VolumeScalePixelPerGrad"]));
+            }
+            set {
+                this["VolumeScalePixelPerGrad"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public double PanningScalePercentPerPixel {
+            get {
+                return ((double)(this["PanningScalePercentPerPixel"]));
+            }
+            set {
+                this["PanningScalePercentPerPixel"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("20")]
+        public double PanningScalePixelPerGrad {
+            get {
+                return ((double)(this["PanningScalePixelPerGrad"]));
+            }
+            set {
+                this["PanningScalePixelPerGrad"] = value;
+            }
+        }
     }
 }

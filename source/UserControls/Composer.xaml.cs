@@ -16,36 +16,40 @@ using System.Windows.Shapes;
 using NAudio.Wave;
 using NAudio.Dsp;
 using System.Media;
+using Vibrante.Properties;
+using System.Diagnostics;
 
 namespace Vibrante.UserControls
 {
-    /// <summary>
-    /// Logique d'interaction pour Composer.xaml
-    /// </summary>
+
     public partial class Composer : UserControl
     {
+        internal int timelineLeftMargin = 5; // Margin on the left of the timeline, in pixels
+        internal int timelinePlayheadWidth = 1; // Width of the playhead, in pixels
+        
         internal FrameworkElement clickedElement = null; // Clicked element, can also be an element belonging to a child user control
 
+        internal double timelineClickPosition = 0; // Position of the mouse on the timeline (x-axis) when the user clicked on it
+        
+        internal double playheadPositionInMs = 0; // Playhead position in time
+        internal double actualTimelineEndTime; // The maximum time currently displayed on the timeline
+
         internal bool snapToGridEnabled = false; // Is the snap-to-grid feature enabled?
-        internal double snapToGridSpacingValueX = 5;
-        internal double snapToGridSpacingValueY = 5;
+        internal bool stereoEnabled = false; // Is the sound in stereo?
 
         internal Point lastMousePosition = new Point(0, 0); // Mouse position relative to MainGrid, updated only when needed
         internal double timeZoom = 1; // Zoom value on the time axis, common to all tracks
         internal double timePosition = 0; // Position of the time axis
 
-        internal double playheadPositionInMs = 0; // Playhead position in time
-        internal double actualTimelineEndTime; // The maximum time currently displayed on the timeline
+        internal enum audioPlayerStates { Playing, Paused, Stopped };
+        internal MediaPlayer audioPlayer = new MediaPlayer(); // Media player used to play the sound
+        internal audioPlayerStates audioPlayerState = audioPlayerStates.Stopped; // State of the media player
 
-        internal MediaPlayer mediaPlayer; // Media player used to play the sound
-        internal bool isAudioPlaying = false; // Is the media player playing sound?
-        internal bool isAudioEnded = true; // Has the media player finished playing the sound? (False when audio is paused)
 
         public Composer()
         {
-            Static.currentComposer = this;
-            Static.CurrentTool = Static.Tools.Point;
-            
+            audioPlayer.MediaEnded += (s, args) => { audioPlayerState = audioPlayerStates.Stopped; };
+
             InitializeComponent();
 
             Resources["SnapToGridIconColor"] = Resources["NotSelectedIcon"];
@@ -58,20 +62,20 @@ namespace Vibrante.UserControls
         {
             Timeline.Children.Clear();
 
-            double firstPixel = Static.ConvertUnitToPixels(timePosition, Static.msPerPixel, timeZoom)-5; // Index of the first pixel to draw if the timeline starts at 0, with a margin of 5 pixels.
-            int graduationSize = 50; // Size of a graduation in pixels, don't take zoom into account yet
+            double firstPixel = Static.ConvertUnitToPixels(timePosition, Settings.Default.TimelineMsPerPixel, timeZoom) - timelineLeftMargin; // Index of the first pixel to draw if the timeline starts at 0, taking into account the margin
+            int graduationSize = 50; // Size of a graduation in pixels
 
             int firstGraduation = (int)(Math.Floor(firstPixel / graduationSize) * graduationSize); // Index of the pixel of the first graduation if the timeline starts at 0. Value <= 0.
             int lastGraduation = (int)(Math.Ceiling((firstPixel + Timeline.ActualWidth) / graduationSize) * graduationSize);
 
-            actualTimelineEndTime = Static.ConvertPixelsToUnit(firstPixel + Timeline.ActualWidth, Static.msPerPixel, timeZoom);
+            actualTimelineEndTime = Static.ConvertPixelsToUnit(firstPixel + Timeline.ActualWidth, Settings.Default.TimelineMsPerPixel, timeZoom);
 
             // Foreach graduation, draw a vertical line and a label with the time
             for (int i = firstGraduation; i < lastGraduation; i += graduationSize)
             {
                 Label timeLabel = new Label()
                 {
-                    Content = Static.ConvertPixelsToUnit(i, Static.msPerPixel, timeZoom).ToString(),
+                    Content = Static.ConvertPixelsToUnit(i, Settings.Default.TimelineMsPerPixel, timeZoom).ToString(),
                     Foreground = (SolidColorBrush)Application.Current.Resources["TextForeground"],
                     IsHitTestVisible = false,
                     VerticalAlignment = VerticalAlignment.Top,
@@ -103,7 +107,7 @@ namespace Vibrante.UserControls
         /// <param name="removeCurrentPlayhead">Delete the playhead before creating a new one?</param>
         public void UpdateTimelinePlayhead(bool removeCurrentPlayhead = true)
         {
-            double positionInPixels = Static.ConvertUnitToPixels(playheadPositionInMs - timePosition, Static.msPerPixel, timeZoom) +5; //Calculate the position on the playhead, taking into account the 5 pixel margin of the timeline
+            double positionInPixels = Static.ConvertUnitToPixels(playheadPositionInMs - timePosition, Settings.Default.TimelineMsPerPixel, timeZoom) + timelineLeftMargin; //Calculate the position on the playhead, taking into account the margin
 
             if (removeCurrentPlayhead)
             {
@@ -126,15 +130,13 @@ namespace Vibrante.UserControls
                 Y1 = 0,
                 Y2 = Timeline.ActualHeight,
                 Stroke = Brushes.Red,
-                StrokeThickness = 1,
+                StrokeThickness = timelinePlayheadWidth,
                 IsHitTestVisible = false,
                 VerticalAlignment = VerticalAlignment.Top,
                 Name = "Playhead"
             });
         }
         
-
-
         /// <summary>
         /// Update the canvas of each track
         /// </summary>
@@ -149,80 +151,110 @@ namespace Vibrante.UserControls
         /// <summary>
         /// Create a sound based on the points of each track and export it to a output.wav file
         /// </summary>
-        public void GenerateSound()
+        public bool GenerateSound(int sample_rate = 44100)
         {
-            double soundDuration = 0;
-            int[] currentPointIndexes = new int[TracksContainer.Children.Count]; // The index of the current point for each track.
-            double[] integralValues = new double[TracksContainer.Children.Count]; // The sum of all values for each track.
+            double soundDurationInMs = 0;
 
-            // Order points by time and find the sound duration
+            // Find the sound duration and init the generation variables
             foreach (ComposerTrack composerTrack in TracksContainer.Children)
             {
-                if (composerTrack.PointList.Count > 0)
+                composerTrack.generationVar_CurrentPitchIntegral = 0;
+                composerTrack.generationVar_CurrentPitchPointIndex = 0;
+                composerTrack.generationVar_CurrentVolumePointIndex = 0;
+                composerTrack.generationVar_CurrentPanningPointIndex = 0;
+                
+                if (composerTrack.pitchTab.pointList.Count > 0)
                 {
-                    composerTrack.PointList = composerTrack.PointList.OrderBy(x => x.X).ToList(); // Order points by time
-                    soundDuration = Math.Max(soundDuration, (int)composerTrack.PointList.Last().X); // Update the sound duration
+                    soundDurationInMs = Math.Max(soundDurationInMs, composerTrack.pitchTab.pointList.Last().X);
                 }
             }
 
-            int sampleCount = (int)Math.Ceiling((soundDuration / 1000) * Static.sampleRate);
+            int channelCount = stereoEnabled ? 2 : 1;
+            int sampleCount = ((int)Math.Ceiling((soundDurationInMs / 1000) * sample_rate));
 
-            WaveFileWriter waveFileWriter = new WaveFileWriter("output.wav", new WaveFormat(Static.sampleRate, 1));
+            WaveFileWriter waveFileWriter = new WaveFileWriter("output.wav", new WaveFormat(sample_rate, channelCount));
 
-            // Foreach sample
-            for (int i = 0; i < sampleCount; i++)
+            for (int i = 0; i < sampleCount; i ++)
             {
-                double timeInMs = ((double)i / Static.sampleRate * 1000); // Time in ms of the current sample
+                // Time in ms of the current sample
+                double currentTimeInMs = ((double)i / sample_rate * 1000);
+
                 float sampleValue = 0;
 
-                // Foreach track
-                for (int j = 0; j< TracksContainer.Children.Count; j++)
+                // Used instead of sampleValue for stereo sounds
+                float leftSampleValue = 0;
+                float rightSampleValue = 0;
+
+                foreach (ComposerTrack composerTrack in TracksContainer.Children)
                 {
-                    ComposerTrack composerTrack = (ComposerTrack)TracksContainer.Children[j];
-
-                    // Skip the track if it has no points
-                    if (composerTrack.PointList.Count == 0)
+                    // If the track contains pitch points
+                    if (composerTrack.pitchTab.pointList.Count > 0)
                     {
-                        continue;
-                    }
-
-                    // Get the interpolation function
-                    Func<double, double, double, double, double, double> interpolationFunction = ((composerTrack.InterpolationListCB.SelectedItem as ComboBoxItem).Tag as InterpolationEditor.Static.Interpolation).InterpolationFunction;
-
-                    // If the sound has started on this track and there is a point after
-                    if (timeInMs > composerTrack.PointList[0].X && currentPointIndexes[j] < composerTrack.PointList.Count - 1)
-                    {
-                        // Get coordinates of the previous point and the next point
-                        double x0 = composerTrack.PointList[currentPointIndexes[j]].X;
-                        double x1 = composerTrack.PointList[currentPointIndexes[j] + 1].X;
-                        double y0 = composerTrack.PointList[currentPointIndexes[j]].Y;
-                        double y1 = composerTrack.PointList[currentPointIndexes[j] + 1].Y;
-
-                        // Calculate the frequency using the interpolation function
-                        double frequency = interpolationFunction(x0, x1, y0, y1, timeInMs);
-
-                        double angleIncrement = 2 * Math.PI * frequency * 1 / Static.sampleRate;
-                        integralValues[j] += angleIncrement; // Add the angle increment to the previous values of this track
-
-                        sampleValue += (float)(0.2 * Math.Sin(integralValues[j])); // Add the integral value of this track to the current sample value
-
-                        // If the next point is reached, update the current point index
-                        if (composerTrack.PointList[currentPointIndexes[j] + 1].X <= timeInMs)
+                        // If we are after the first pitch point
+                        if (currentTimeInMs >= composerTrack.pitchTab.pointList.First().X)
                         {
-                            currentPointIndexes[j] += 1;
+                            // If the last point is not yet reached
+                            if (currentTimeInMs < composerTrack.pitchTab.pointList.Last().X)
+                            {
+                                double currentFrequency = composerTrack.pitchTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentPitchPointIndex);
+                                double angleIncrement = 2 * Math.PI * currentFrequency / Static.sampleRate;
+                                
+                                composerTrack.generationVar_CurrentPitchIntegral += angleIncrement;
+
+                                // If the amplitude is not constant and there is no point, set it to 100
+                                if (composerTrack.volumeTab.pointList.Count == 0 && composerTrack.volumeTab.constantValue == null)
+                                    composerTrack.volumeTab.constantValue = 100;
+
+                                double amplitude = composerTrack.volumeTab.constantValue == null ?
+                                    composerTrack.volumeTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentVolumePointIndex) / 100
+                                    : (double)composerTrack.volumeTab.constantValue / 100;
+
+                                if (!stereoEnabled) // Mono
+                                {
+                                    sampleValue += (float)(amplitude * Math.Sin(composerTrack.generationVar_CurrentPitchIntegral));
+                                }
+                                else // Stereo
+                                {
+                                    double panning = composerTrack.panningTab.constantValue == null ?
+                                        composerTrack.panningTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentPanningPointIndex) / 100
+                                        : (double)composerTrack.panningTab.constantValue / 100;
+
+                                    double leftAmplitude = amplitude;
+                                    double rightAmplitude = amplitude;
+
+                                    if (panning < 0)
+                                    {
+                                        leftAmplitude *= panning + 1;
+                                    }
+                                    else if (panning > 0)
+                                    {
+                                        rightAmplitude *= 1 - panning;
+                                    }
+
+                                    leftSampleValue += (float)(leftAmplitude * Math.Sin(composerTrack.generationVar_CurrentPitchIntegral));
+                                    rightSampleValue += (float)(rightAmplitude * Math.Sin(composerTrack.generationVar_CurrentPitchIntegral));
+                                }
+                            }
                         }
                     }
+                }
 
+                if (stereoEnabled)
+                {
+                    waveFileWriter.WriteSample(leftSampleValue);
+                    waveFileWriter.WriteSample(rightSampleValue);
+                }
+                else
+                {
+                    waveFileWriter.WriteSample(sampleValue);
                 }
                 
-                waveFileWriter.WriteSample(sampleValue);
-
             }
 
             waveFileWriter.Close();
+            return true;
         }
-
-
+        
         #region Events
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
@@ -237,19 +269,17 @@ namespace Vibrante.UserControls
         {
 
         }
-
         private void UserControl_MouseUp(object sender, MouseButtonEventArgs e)
         {
             clickedElement = null;
         }
-
         internal void UserControl_MouseMove(object sender, MouseEventArgs e)
         {
             // Move only horizontally when moving on the timeline
             if (e.LeftButton == MouseButtonState.Pressed && clickedElement == Timeline)
             {
                 int deltaXInPixels = (int)(lastMousePosition.X - e.GetPosition(MainGrid).X);
-                double deltaXInMs = Static.ConvertPixelsToUnit(deltaXInPixels, Static.msPerPixel, timeZoom);
+                double deltaXInMs = Static.ConvertPixelsToUnit(deltaXInPixels, Settings.Default.TimelineMsPerPixel, timeZoom);
 
                 if (timePosition + deltaXInMs < 0)
                 {
@@ -278,15 +308,15 @@ namespace Vibrante.UserControls
                 ComposerTrack track = clickedElement.Tag as ComposerTrack;
 
                 int deltaYInPixels = (int)(lastMousePosition.Y - e.GetPosition(MainGrid).Y);
-                double deltaYInHz = -Static.PixelToHz(deltaYInPixels, track.pitchZoom);
+                double deltaYInHz = -Static.ConvertPixelsToUnit(deltaYInPixels, Settings.Default.PitchScaleHzPerPixel, track.pitchTab.verticalZoom);
 
-                if (track.pitchPosition + deltaYInHz < 0)
+                if (track.pitchTab.verticalPosition + deltaYInHz < 0)
                 {
-                    track.pitchPosition = 0;
+                    track.pitchTab.verticalPosition = 0;
                 }
                 else
                 {
-                    track.pitchPosition = track.pitchPosition + deltaYInHz;
+                    track.pitchTab.verticalPosition = track.pitchTab.verticalPosition + deltaYInHz;
                 }
 
                 track.UpdateCanvas();
@@ -297,7 +327,6 @@ namespace Vibrante.UserControls
             
         }
         
-
         private void SnapToGrid_LeftClick(object sender, MouseButtonEventArgs e)
         {
             if (snapToGridEnabled)
@@ -312,178 +341,134 @@ namespace Vibrante.UserControls
             }
         }
 
-
-        private void SnapToGridGapValue_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
-            // Check if the text is a number
-            if (!char.IsDigit(e.Text, e.Text.Length - 1))
-            {
-                if (e.Text != "." || ((TextBox)sender).Text.Contains("."))
-                {
-                    e.Handled = true;
-                    return;
-                }
-            }
-        }
-
-        private void SnapToGridGapValue_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            // Check if the pasted text is a number
-            if ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) && e.Key == Key.V)
-            {
-                string pastedText = Clipboard.GetText();
-
-                double number;
-                if (!double.TryParse(pastedText, out number) || number <= 0)
-                {
-                    e.Handled = true;
-                }
-            }
-        }
-
-        private void SnapToGridGapValue_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
-        {
-            // Check if the text is a number
-            double number;
-            if (!double.TryParse(((TextBox)sender).Text, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.GetCultureInfo("en-US"), out number) || number <= 0)
-            {
-                ((TextBox)sender).Text = "1";
-            }
-            
-            // Update the snap-to-grid spacing values
-            snapToGridSpacingValueX = Double.Parse(SnapToGridSpacingValueX_TextBox.Text, System.Globalization.CultureInfo.GetCultureInfo("en-US"));
-            snapToGridSpacingValueY = Double.Parse(SnapToGridSpacingValueY_TextBox.Text, System.Globalization.CultureInfo.GetCultureInfo("en-US"));
-        }
-
-
-
         private void GenerateControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            mediaPlayer?.Stop();
-            isAudioEnded = true;
-            mediaPlayer?.Close();
+            if (audioPlayerState != audioPlayerStates.Stopped)
+            {
+                audioPlayer.Stop();
+            }
+
+            audioPlayer.Close();
             GenerateSound();
         }
-
         private void SkipToStartControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            mediaPlayer.Position = new TimeSpan(0);
+            audioPlayer.Position = new TimeSpan(0);
             timePosition = 0;
             playheadPositionInMs = 0;
 
             UpdateTimeline();
             UpdateEveryTrackCanvas();
         }
-
         private void SkipToEndControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
             // Calculate the sound duration
             double soundDuration = 0;
             foreach (ComposerTrack composerTrack in TracksContainer.Children)
             {
-                if (composerTrack.PointList.Count > 0)
+                if (composerTrack.pitchTab.pointList.Count > 0)
                 {
-                    double trackDuration = composerTrack.PointList.OrderBy(x => x.X).Last().X;
+                    double trackDuration = composerTrack.pitchTab.pointList.OrderBy(x => x.X).Last().X;
                     soundDuration = Math.Max(soundDuration, trackDuration);
                 }
             }
 
-            mediaPlayer.Position = TimeSpan.FromMilliseconds(soundDuration);
+            audioPlayer.Position = TimeSpan.FromMilliseconds(soundDuration);
             timePosition = soundDuration;
             playheadPositionInMs = soundDuration;
 
             UpdateTimeline();
             UpdateEveryTrackCanvas();
         }
-
         private async void PlayControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            // Is the audio is playing, pause the media player.
-            if (isAudioPlaying)
+            // If the audio is stopped (not started or ended), open the sound file
+            if (audioPlayerState == audioPlayerStates.Stopped)
             {
-                isAudioPlaying = false;
-                mediaPlayer.Pause();
+                // Check if the output sound file exists
+                if (!System.IO.File.Exists("output.wav"))
+                    return;
 
-                PlayButton_PauseRect1.Opacity = 0;
-                PlayButton_PauseRect2.Opacity = 0;
-                PlayButton_PlayIcon.Opacity = 1;
-                PlayControl_Grid.ToolTip = "Play";
+                TimeSpan audioPlayerPosition = audioPlayer.Position; // Save the media player position before it is reset by Open()
+                audioPlayer.Open(new Uri("output.wav", UriKind.Relative));
+                audioPlayer.Position = audioPlayerPosition;
             }
-            else
+
+            // If the audio is paused or stopped, play the sound
+            if (audioPlayerState != audioPlayerStates.Playing)
             {
-                // Is the audio has not started, generate the sound and play it
-                if (isAudioEnded)
+                audioPlayerState = audioPlayerStates.Playing;
+                audioPlayer.Play();
+
+                // Update GUI
+                PlayButton_PauseRect1.Opacity = 1;
+                PlayButton_PauseRect2.Opacity = 1;
+                PlayButton_PlayIcon.Opacity = 0;
+                PlayControl_Grid.ToolTip = "Pause";
+
+                // Loop while audio is playing
+                while (audioPlayerState == audioPlayerStates.Playing)
                 {
-                    // If there are no tracks, return
-                    if (TracksContainer.Children.Count == 0)
-                        return;
+                    await Task.Delay(5);
 
-                    GenerateSound();
-
-                    mediaPlayer = new MediaPlayer();
-                    mediaPlayer.MediaEnded += (s, args) => { isAudioEnded = true; };
-                    mediaPlayer.Open(new Uri("output.wav", UriKind.Relative));
-                    mediaPlayer.Play();
-
-                    isAudioPlaying = true;
-                    isAudioEnded = false;
-
-                    PlayButton_PauseRect1.Opacity = 1;
-                    PlayButton_PauseRect2.Opacity = 1;
-                    PlayButton_PlayIcon.Opacity = 0;
-                    PlayControl_Grid.ToolTip = "Pause";
-
-                    // Loop until the audio is ended
-                    while (!isAudioEnded)
+                    // If the current time is outside the displayed timeline, change the timeline position
+                    if (audioPlayer.Position.TotalMilliseconds < timePosition || audioPlayer.Position.TotalMilliseconds > actualTimelineEndTime)
                     {
-                        //MainWindow.SetWindowTitle(Static.mediaPlayer.Position.TotalMilliseconds);
-                        await Task.Delay(5);
-
-                        // Don't update UI if audio is paused
-                        if (!isAudioPlaying)
-                        {
-                            continue;
-                        }
-                        
-                        // Media time < Displayed time   OR   Media time > Displayed time   =>   Go to the media time
-                        if (mediaPlayer.Position.TotalMilliseconds < timePosition
-                            || mediaPlayer.Position.TotalMilliseconds > actualTimelineEndTime)
-                        {
-                            timePosition = mediaPlayer.Position.TotalMilliseconds;
-                            UpdateTimeline();
-                            UpdateEveryTrackCanvas();
-                        }
-
-                        //double timePositionInPixels = Static.MsToPixel(Static.mediaPlayer.Position.TotalMilliseconds - Static.actualTimelineStartTime);
-                        playheadPositionInMs = mediaPlayer.Position.TotalMilliseconds;
-                        UpdateTimelinePlayhead();
+                        timePosition = audioPlayer.Position.TotalMilliseconds;
+                        UpdateTimeline();
+                        UpdateEveryTrackCanvas();
                     }
 
-                    mediaPlayer.Close();
-                    isAudioPlaying = false;
-                    timePosition = 0;
+                    // Update the playhead position
+                    playheadPositionInMs = audioPlayer.Position.TotalMilliseconds;
+                    UpdateTimelinePlayhead();
+                }
 
+                // If audio is ended, close the sound file
+                if (audioPlayerState == audioPlayerStates.Stopped)
+                {
+                    audioPlayer.Close();
+                    audioPlayer.Position = TimeSpan.Zero;
+                    //timePosition = 0;
+                    
                     PlayButton_PauseRect1.Opacity = 0;
                     PlayButton_PauseRect2.Opacity = 0;
                     PlayButton_PlayIcon.Opacity = 1;
                     PlayControl_Grid.ToolTip = "Play";
                 }
-
-                // If the audio is paused, resume it
-                else
-                {
-                    isAudioPlaying = true;
-                    mediaPlayer.Play();
-
-                    PlayButton_PauseRect1.Opacity = 1;
-                    PlayButton_PauseRect2.Opacity = 1;
-                    PlayButton_PlayIcon.Opacity = 0;
-                    PlayControl_Grid.ToolTip = "Pause";
-                }
-
             }
-            
+
+            // If the audio is playing, pause the audio player
+            if (audioPlayerState == audioPlayerStates.Playing)
+            {
+                audioPlayerState = audioPlayerStates.Paused;
+                audioPlayer.Pause();
+
+                // Update GUI
+                PlayButton_PauseRect1.Opacity = 0;
+                PlayButton_PauseRect2.Opacity = 0;
+                PlayButton_PlayIcon.Opacity = 1;
+                PlayControl_Grid.ToolTip = "Play";
+            }
         }
+
+        private void StereoCheckBox_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            stereoEnabled = !stereoEnabled;
+            StereoCheckMark.Visibility = stereoEnabled ? Visibility.Visible : Visibility.Hidden;
+            StereoCheckBox_Border.BorderBrush = (SolidColorBrush)(stereoEnabled ? Resources["SelectedIcon"] : Resources["ButtonBorder"]);
+
+            // For each track
+            foreach (ComposerTrack composerTrack in TracksContainer.Children)
+            {
+                // If the track is on the panning tab, update the alert message visibility
+                if (composerTrack.currentTab == composerTrack.panningTab)
+                {
+                    composerTrack.StereoDisabledAlert_Grid.Visibility = stereoEnabled ? Visibility.Hidden : Visibility.Visible;
+                }
+            }
+        }
+
 
         private void NewTrackButton_MouseEnter(object sender, MouseEventArgs e)
         {
@@ -499,31 +484,33 @@ namespace Vibrante.UserControls
             TracksContainer.Children.Add(track);
         }
 
-        internal void TimelineLeftClick(object sender, MouseButtonEventArgs e)
+        internal void Timeline_MouseLeftDown(object sender, MouseButtonEventArgs e)
         {
             clickedElement = Timeline;
             lastMousePosition = e.GetPosition(MainGrid);
-            //lastTimelineClickPosition = e.GetPosition(Timeline).X;
+            timelineClickPosition = e.GetPosition(Timeline).X;
+        }
+        private void Timeline_MouseLeftUp(object sender, MouseButtonEventArgs e)
+        {
+            // If the mouse has not been moved horizontally, set the playhead and the audio player position
+            if (e.GetPosition(Timeline).X == timelineClickPosition)
+            {
+                playheadPositionInMs = Static.ConvertPixelsToUnit(timelineClickPosition - timelineLeftMargin + 1, Settings.Default.TimelineMsPerPixel, timeZoom) + timePosition;
+                audioPlayer.Position = TimeSpan.FromMilliseconds(playheadPositionInMs);
+                UpdateTimelinePlayhead();
+            }
         }
 
         #endregion
 
         public static class Static
         {
-            public static Composer currentComposer;
-            
             public static int sampleRate = 44100;
             
-            public const double msPerPixel = 9; // Milliseconds per pixel displayed for a zoom of 1.
-            public const double hzPerPixel = 5; // Hertz per pixel displayed for a zoom of 1.
-
-            public static Tools CurrentTool = Tools.Point;
-
-            public enum Tools
-            {
-                Point,
-                Selection
-            }
+            //public const double msPerPixel = 10; // Milliseconds per pixel displayed for a zoom of 1.
+            //public const double hzPerPixel = 5; // Hertz per pixel displayed for a zoom of 1.
+            public const double dbPerPixel = 5; // Decibel per pixel displayed for a zoom of 1.
+            
 
             /// <summary>
             /// Convert a given amount of pixels to a specified unit of measurement.
@@ -549,6 +536,7 @@ namespace Vibrante.UserControls
                 return Math.Round(value / (unit_per_pixel * zoom));
             }
 
+            /*
             public static double PixelToHz(double pixels, double zoom)
             {
                 return pixels * hzPerPixel * zoom;
@@ -558,12 +546,7 @@ namespace Vibrante.UserControls
             public static double HzToPixel(double hz, double zoom)
             {
                 return Math.Round(hz / (hzPerPixel * zoom));
-            }
-        }
-
-        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
-
+            }*/
         }
     }
 }

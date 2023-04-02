@@ -87,6 +87,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Classes.cs" />
+    <Compile Include="CommonUtils.cs" />
     <Compile Include="Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
@@ -100,6 +102,9 @@
     </Compile>
     <Compile Include="UserControls\InterpolationEditor.xaml.cs">
       <DependentUpon>InterpolationEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\NumericTextBox.xaml.cs">
+      <DependentUpon>NumericTextBox.xaml</DependentUpon>
     </Compile>
     <Compile Include="UserControls\SoundEditor.xaml.cs">
       <DependentUpon>SoundEditor.xaml</DependentUpon>
@@ -129,6 +134,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UserControls\InterpolationEditor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\NumericTextBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
