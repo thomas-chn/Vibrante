@@ -148,113 +148,8 @@ namespace Vibrante.UserControls
             }
         }
 
-        /// <summary>
-        /// Create a sound based on the points of each track and export it to a output.wav file
-        /// </summary>
-        public bool GenerateSound(int sample_rate = 44100)
-        {
-            double soundDurationInMs = 0;
 
-            // Find the sound duration and init the generation variables
-            foreach (ComposerTrack composerTrack in TracksContainer.Children)
-            {
-                composerTrack.generationVar_CurrentPitchIntegral = 0;
-                composerTrack.generationVar_CurrentPitchPointIndex = 0;
-                composerTrack.generationVar_CurrentVolumePointIndex = 0;
-                composerTrack.generationVar_CurrentPanningPointIndex = 0;
-                
-                if (composerTrack.pitchTab.pointList.Count > 0)
-                {
-                    soundDurationInMs = Math.Max(soundDurationInMs, composerTrack.pitchTab.pointList.Last().X);
-                }
-            }
 
-            int channelCount = stereoEnabled ? 2 : 1;
-            int sampleCount = ((int)Math.Ceiling((soundDurationInMs / 1000) * sample_rate));
-
-            WaveFileWriter waveFileWriter = new WaveFileWriter("output.wav", new WaveFormat(sample_rate, channelCount));
-
-            for (int i = 0; i < sampleCount; i ++)
-            {
-                // Time in ms of the current sample
-                double currentTimeInMs = ((double)i / sample_rate * 1000);
-
-                float sampleValue = 0;
-
-                // Used instead of sampleValue for stereo sounds
-                float leftSampleValue = 0;
-                float rightSampleValue = 0;
-
-                foreach (ComposerTrack composerTrack in TracksContainer.Children)
-                {
-                    // If the track contains pitch points
-                    if (composerTrack.pitchTab.pointList.Count > 0)
-                    {
-                        // If we are after the first pitch point
-                        if (currentTimeInMs >= composerTrack.pitchTab.pointList.First().X)
-                        {
-                            // If the last point is not yet reached
-                            if (currentTimeInMs < composerTrack.pitchTab.pointList.Last().X)
-                            {
-                                double currentFrequency = composerTrack.pitchTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentPitchPointIndex);
-                                double angleIncrement = 2 * Math.PI * currentFrequency / Static.sampleRate;
-                                
-                                composerTrack.generationVar_CurrentPitchIntegral += angleIncrement;
-
-                                // If the amplitude is not constant and there is no point, set it to 100
-                                if (composerTrack.volumeTab.pointList.Count == 0 && composerTrack.volumeTab.constantValue == null)
-                                    composerTrack.volumeTab.constantValue = 100;
-
-                                double amplitude = composerTrack.volumeTab.constantValue == null ?
-                                    composerTrack.volumeTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentVolumePointIndex) / 100
-                                    : (double)composerTrack.volumeTab.constantValue / 100;
-
-                                if (!stereoEnabled) // Mono
-                                {
-                                    sampleValue += (float)(amplitude * Math.Sin(composerTrack.generationVar_CurrentPitchIntegral));
-                                }
-                                else // Stereo
-                                {
-                                    double panning = composerTrack.panningTab.constantValue == null ?
-                                        composerTrack.panningTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentPanningPointIndex) / 100
-                                        : (double)composerTrack.panningTab.constantValue / 100;
-
-                                    double leftAmplitude = amplitude;
-                                    double rightAmplitude = amplitude;
-
-                                    if (panning < 0)
-                                    {
-                                        leftAmplitude *= panning + 1;
-                                    }
-                                    else if (panning > 0)
-                                    {
-                                        rightAmplitude *= 1 - panning;
-                                    }
-
-                                    leftSampleValue += (float)(leftAmplitude * Math.Sin(composerTrack.generationVar_CurrentPitchIntegral));
-                                    rightSampleValue += (float)(rightAmplitude * Math.Sin(composerTrack.generationVar_CurrentPitchIntegral));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (stereoEnabled)
-                {
-                    waveFileWriter.WriteSample(leftSampleValue);
-                    waveFileWriter.WriteSample(rightSampleValue);
-                }
-                else
-                {
-                    waveFileWriter.WriteSample(sampleValue);
-                }
-                
-            }
-
-            waveFileWriter.Close();
-            return true;
-        }
-        
         #region Events
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
@@ -349,7 +244,7 @@ namespace Vibrante.UserControls
             }
 
             audioPlayer.Close();
-            GenerateSound();
+            SoundGenerator.Generate();
         }
         private void SkipToStartControl_MouseDown(object sender, MouseButtonEventArgs e)
         {

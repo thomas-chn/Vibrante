@@ -94,6 +94,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="SoundGenerator.cs" />
     <Compile Include="UserControls\Composer.xaml.cs">
       <DependentUpon>Composer.xaml</DependentUpon>
     </Compile>
