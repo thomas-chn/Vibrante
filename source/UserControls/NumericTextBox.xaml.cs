@@ -24,8 +24,8 @@ namespace Vibrante.UserControls
         public static readonly DependencyProperty AllowDecimalProperty = DependencyProperty.Register("AllowDecimal", typeof(bool), typeof(NumericTextBox), new PropertyMetadata(true));
         public static readonly DependencyProperty AllowNegativeProperty = DependencyProperty.Register("AllowNegative", typeof(bool), typeof(NumericTextBox), new PropertyMetadata(false));
         public static readonly DependencyProperty AllowZeroProperty = DependencyProperty.Register("AllowZero", typeof(bool), typeof(NumericTextBox), new PropertyMetadata(false));
-        public static readonly DependencyProperty MinValueProperty = DependencyProperty.Register("MinValue", typeof(double), typeof(NumericTextBox), new PropertyMetadata(double.NaN));
-        public static readonly DependencyProperty MaxValueProperty = DependencyProperty.Register("MaxValue", typeof(double), typeof(NumericTextBox), new PropertyMetadata(double.NaN));
+        public static readonly DependencyProperty MinValueProperty = DependencyProperty.Register("MinValue", typeof(float), typeof(NumericTextBox), new PropertyMetadata(float.NaN));
+        public static readonly DependencyProperty MaxValueProperty = DependencyProperty.Register("MaxValue", typeof(float), typeof(NumericTextBox), new PropertyMetadata(float.NaN));
         public static readonly RoutedEvent ValueChangedEvent = EventManager.RegisterRoutedEvent("ValueChanged", RoutingStrategy.Bubble, typeof(EventHandler<RoutedEventArgs>), typeof(NumericTextBox));
         
         /// <summary>
@@ -40,7 +40,7 @@ namespace Vibrante.UserControls
         /// <summary>
         /// Value taken by the text box when the input is invalid.
         /// </summary>
-        public double DefaultValue { get; set; }
+        public float DefaultValue { get; set; }
 
         /// <summary>
         /// Allow the user to enter decimal numbers.
@@ -72,25 +72,25 @@ namespace Vibrante.UserControls
         /// <summary>
         /// Minimum value allowed.
         /// </summary>
-        public double MinValue
+        public float MinValue
         {
-            get { return (double)GetValue(MinValueProperty); }
+            get { return (float)GetValue(MinValueProperty); }
             set { SetValue(MinValueProperty, value); }
         }
 
         /// <summary>
         /// Maximum value allowed.
         /// </summary>
-        public double MaxValue
+        public float MaxValue
         {
-            get { return (double)GetValue(MaxValueProperty); }
+            get { return (float)GetValue(MaxValueProperty); }
             set { SetValue(MaxValueProperty, value); }
         }
         
         /// <summary>
         /// Value of the text box.
         /// </summary>
-        public double Value { get; set; }
+        public float Value { get; set; }
 
         public event RoutedEventHandler ValueChanged
         {
@@ -99,7 +99,7 @@ namespace Vibrante.UserControls
         }
 
         private string lastValidText;
-        private double lastValidValue;
+        private float lastValidValue;
 
         public NumericTextBox()
         {
@@ -108,7 +108,7 @@ namespace Vibrante.UserControls
 
             textbox.Loaded += ((object sender, RoutedEventArgs e) =>
             {
-                if (isTextValid(Text, out string formatted_text, out double value))
+                if (isTextValid(Text, out string formatted_text, out float value))
                 {
                     Value = value;
                     lastValidText = formatted_text;
@@ -123,8 +123,8 @@ namespace Vibrante.UserControls
         /// </summary>
         /// <param name="text">Text to check.</param>
         /// <param name="formatted_text">If the text is valid, reformatted text. Otherwise empty text.</param>
-        /// <param name="double_value">If the text is valid, the value of the text. Otherwise 0.</param>
-        private bool isTextValid(string text, out string formatted_text, out double double_value)
+        /// <param name="float_value">If the text is valid, the value of the text. Otherwise 0.</param>
+        private bool isTextValid(string text, out string formatted_text, out float float_value)
         {
             if (!AllowNegative)
             {
@@ -132,10 +132,10 @@ namespace Vibrante.UserControls
             }
 
             formatted_text = "";
-            double_value = 0;
+            float_value = 0;
 
-            double value;
-            bool isNumeric = double.TryParse(text, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out value);
+            float value;
+            bool isNumeric = float.TryParse(text, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out value);
 
             int int_value = (int)value;
             bool isInteger = (int_value == value);
@@ -158,7 +158,7 @@ namespace Vibrante.UserControls
                 isInteger = (int_value == value);
             }
 
-            double_value = value;
+            float_value = value;
 
             if (isInteger)
             {
@@ -179,7 +179,7 @@ namespace Vibrante.UserControls
         private void apply(bool replace_if_invalid = true)
         {
             // If the text is valid, update the value of the textbox
-            if (isTextValid(textbox.Text, out string formatted_text, out double value))
+            if (isTextValid(textbox.Text, out string formatted_text, out float value))
             {
                 lastValidText = Text;
                 lastValidValue = Value;
@@ -223,7 +223,7 @@ namespace Vibrante.UserControls
             // Disable paste if the text to paste is invalid
             if ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) && e.Key == Key.V)
             {
-                if (!isTextValid(Clipboard.GetText(), out string _, out double _))
+                if (!isTextValid(Clipboard.GetText(), out string _, out float _))
                 {
                     e.Handled = true;
                 }

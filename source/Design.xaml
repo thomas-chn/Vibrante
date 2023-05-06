@@ -11,12 +11,12 @@
     <SolidColorBrush x:Key="ButtonBackground" Color="#404040"/>
     <SolidColorBrush x:Key="ButtonBorder" Color="#606060"/>
     
-    
-
     <SolidColorBrush x:Key="PitchColor" Color="#FF5542"/>
     <SolidColorBrush x:Key="VolumeColor" Color="#FF13B94B"/>
     <SolidColorBrush x:Key="PanningColor" Color="#FF366FE0"/>
     <SolidColorBrush x:Key="DisabledColor" Color="#808080"/>
+
+    <SolidColorBrush x:Key="GeneratedColor" Color="#FF23FF56"/>
 
     <!--Values-->
     <sys:Double x:Key="ComposerTrackHeaderWidth">160</sys:Double>

@@ -84,8 +84,8 @@ namespace Vibrante.UserControls
                 name = "Ease-In 2°",
                 function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
                 {
-                    double t = (x - point1.X) / (point2.X - point1.X);
-                    double y = point1.Y + (point2.Y - point1.Y) * Math.Pow(t, 2);
+                    float t = (x - point1.X) / (point2.X - point1.X);
+                    float y = point1.Y + (point2.Y - point1.Y) * (float)Math.Pow(t, 2);
                     return y;
                 }),
             },
@@ -95,8 +95,8 @@ namespace Vibrante.UserControls
                 name = "Ease-In 10°",
                 function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
                 {
-                    double t = (x - point1.X) / (point2.X - point1.X);
-                    double y = point1.Y + (point2.Y - point1.Y) * Math.Pow(t, 10);
+                    float t = (x - point1.X) / (point2.X - point1.X);
+                    float y = point1.Y + (point2.Y - point1.Y) * (float)Math.Pow(t, 10);
                     return y;
                 }),
             },
@@ -106,8 +106,8 @@ namespace Vibrante.UserControls
                 name = "Ease-Out 2°",
                 function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
                 {
-                    double t = (x - point1.X) / (point2.X - point1.X);
-                    double y = point1.Y + (point2.Y - point1.Y) * (1 - Math.Pow(1 - t, 2));
+                    float t = (x - point1.X) / (point2.X - point1.X);
+                    float y = point1.Y + (point2.Y - point1.Y) * (1 - (float)Math.Pow(1 - t, 2));
                     return y;
                 }),
             },
@@ -117,8 +117,8 @@ namespace Vibrante.UserControls
                 name = "Ease-Out 10°",
                 function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
                 {
-                    double t = (x - point1.X) / (point2.X - point1.X);
-                    double y = point1.Y + (point2.Y - point1.Y) * (1 - Math.Pow(1 - t, 10));
+                    float t = (x - point1.X) / (point2.X - point1.X);
+                    float y = point1.Y + (point2.Y - point1.Y) * (1 - (float)Math.Pow(1 - t, 10));
                     return y;
                 }),
             },
@@ -128,15 +128,15 @@ namespace Vibrante.UserControls
                 name = "Ease-In-Out",
                 function = new Classes.Interpolation.interpolationFunction((point1, point2, x) =>
                 {
-                    double t = (x - point1.X) / (point2.X - point1.X);
+                    float t = (x - point1.X) / (point2.X - point1.X);
                     if (t < 0.5)
                     {
-                        return point1.Y + (point2.Y - point1.Y) * Math.Pow(t, 2) * 2;
+                        return point1.Y + (point2.Y - point1.Y) * (float)Math.Pow(t, 2) * 2;
                     }
                     else
                     {
                         t = 1 - t;
-                        return point2.Y - (point2.Y - point1.Y) * Math.Pow(t, 2) * 2;
+                        return point2.Y - (point2.Y - point1.Y) * (float)Math.Pow(t, 2) * 2;
                     }
                 }),
             }

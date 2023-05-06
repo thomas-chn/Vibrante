@@ -28,7 +28,32 @@
             </Grid.ColumnDefinitions>
 
             <DockPanel Grid.Column="0" Background="#00000000">
-                <TextBox Background="Transparent" Foreground="{StaticResource TextForeground}" BorderBrush="{x:Null}" CaretBrush="{DynamicResource TextForeground}" FontSize="14" FontWeight="Bold" Text="New Track" Margin="5,2,5,2" DockPanel.Dock="Top" MaxLength="20"  PreviewMouseLeftButtonDown="TrackName_MouseLeftDown" PreviewKeyDown="TrackName_PreviewKeyDown"/>
+                <DockPanel DockPanel.Dock="Top">
+                    <Grid DockPanel.Dock="Right" Width="20" Height="20" Background="#00000000" ToolTip="Delete track" MouseLeftButtonDown="DeleteTrack_LeftClick">
+                        <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="15" Width="3" RadiusX="1" RadiusY="1" RenderTransformOrigin="0.5,0.5">
+                            <Rectangle.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform/>
+                                    <SkewTransform/>
+                                    <RotateTransform Angle="-45"/>
+                                    <TranslateTransform/>
+                                </TransformGroup>
+                            </Rectangle.RenderTransform>
+                        </Rectangle>
+                        <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="15" Width="3" RadiusX="1" RadiusY="1" RenderTransformOrigin="0.5,0.5">
+                            <Rectangle.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform/>
+                                    <SkewTransform/>
+                                    <RotateTransform Angle="45"/>
+                                    <TranslateTransform/>
+                                </TransformGroup>
+                            </Rectangle.RenderTransform>
+                        </Rectangle>
+                    </Grid>
+                    <TextBox Background="Transparent" Foreground="{StaticResource TextForeground}" BorderBrush="{x:Null}" CaretBrush="{DynamicResource TextForeground}" FontSize="14" FontWeight="Bold" Text="New Track" Margin="5,2,5,2" MaxLength="20" DockPanel.Dock="Left" PreviewMouseLeftButtonDown="TrackName_MouseLeftDown" PreviewKeyDown="TrackName_PreviewKeyDown"/>
+                </DockPanel>
+                
                 <Rectangle DockPanel.Dock="Top" Fill="{DynamicResource NotSelectedIcon}" Height="1"/>
                 <UniformGrid DockPanel.Dock="Left" Rows="3" Columns="1" Margin="5,0,5,0">
                     <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" ToolTip="Pitch" MouseLeftButtonDown="PitchTab_MouseLeftDown">
@@ -50,6 +75,13 @@
                                 </PathGeometry>
                             </Path.Data>
                         </Path>
+                        <Grid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy Points" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="PitchTab_CopyPointsClick"/>
+                                <MenuItem Header="Paste Points (Add)" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="PitchTab_PasteAddPointsClick"/>
+                                <MenuItem Header="Paste Points (Replace)" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="PitchTab_PasteReplacePointsClick"/>
+                            </ContextMenu>
+                        </Grid.ContextMenu>
                     </Grid>
 
                     <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" ToolTip="Volume" MouseLeftButtonDown="VolumeTab_MouseLeftDown">
@@ -71,12 +103,26 @@
                                 </GeometryGroup>
                             </Path.Data>
                         </Path>
+                        <Grid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy Points" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="VolumeTab_CopyPointsClick"/>
+                                <MenuItem Header="Paste Points (Add)" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="VolumeTab_PasteAddPointsClick"/>
+                                <MenuItem Header="Paste Points (Replace)" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="VolumeTab_PasteReplacePointsClick"/>
+                            </ContextMenu>
+                        </Grid.ContextMenu>
                     </Grid>
 
                     <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" ToolTip="Panning" MouseLeftButtonDown="PanningTab_MouseLeftDown">
                         <Border BorderBrush="{StaticResource PanningColor}" BorderThickness="2,2,2,2" Opacity="0.75"/>
                         <Ellipse Width="18" Height="18" StrokeThickness="2" Stroke="{DynamicResource PanningColor}"/>
                         <Rectangle Width="2" Height="18" Fill="{DynamicResource PanningColor}"/>
+                        <Grid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy Points" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="PanningTab_CopyPointsClick"/>
+                                <MenuItem Header="Paste Points (Add)" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="PanningTab_PasteAddPointsClick"/>
+                                <MenuItem Header="Paste Points (Replace)" Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource TextForeground}" Click="PanningTab_PasteReplacePointsClick"/>
+                            </ContextMenu>
+                        </Grid.ContextMenu>
                     </Grid>
                 </UniformGrid>
                 <Rectangle DockPanel.Dock="Left" Fill="{DynamicResource NotSelectedIcon}" Width="1"/>
@@ -127,7 +173,7 @@
 
             <Grid x:Name="SoundCanvas_Grid" Grid.Column="3">
                 <Label x:Name="PositionLabel" Content="Position: 15ms;168Hz" Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="#7F000000" FontSize="10" Margin="1,1,1,1" Opacity="0"/>
-                <Canvas x:Name="SoundCanvas"  Background="#00000000" MouseDown="CanvasMouseClick" MouseMove="CanvasMouseMove" ClipToBounds="True" MouseUp="CanvasMouseButtonUp" MouseEnter="CanvasMouseEnter" MouseLeave="CanvasMouseLeave" Tag="{Binding ElementName=userControl}" MouseWheel="CanvasMouseWheel" Margin="0,1,0,1"/>
+                <Canvas x:Name="SoundCanvas"  Background="#00000000" MouseLeftButtonDown="CanvasMouseLeftClick" MouseMove="CanvasMouseMove" ClipToBounds="True" MouseUp="CanvasMouseButtonUp" MouseEnter="CanvasMouseEnter" MouseLeave="CanvasMouseLeave" Tag="{Binding ElementName=userControl}" PreviewMouseWheel="CanvasMouseWheel" Margin="0,1,0,1"/>
                 <Grid x:Name="StereoDisabledAlert_Grid" Background="#B2000000" Visibility="Hidden">
                     <Label Content="You must enable stereo sound generation to use this feature." Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Grid>

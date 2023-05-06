@@ -12,7 +12,7 @@ namespace Vibrante {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.3.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.5.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -26,21 +26,9 @@ namespace Vibrante {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("0.1")]
-        public double VerticalPanningMouseWheelSensi {
+        public float HorizontalPanningMouseWheelSensi {
             get {
-                return ((double)(this["VerticalPanningMouseWheelSensi"]));
-            }
-            set {
-                this["VerticalPanningMouseWheelSensi"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0.1")]
-        public double HorizontalPanningMouseWheelSensi {
-            get {
-                return ((double)(this["HorizontalPanningMouseWheelSensi"]));
+                return ((float)(this["HorizontalPanningMouseWheelSensi"]));
             }
             set {
                 this["HorizontalPanningMouseWheelSensi"] = value;
@@ -50,96 +38,12 @@ namespace Vibrante {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("10")]
-        public double TimelineMsPerPixel {
+        public float TimelineMsPerPixel {
             get {
-                return ((double)(this["TimelineMsPerPixel"]));
+                return ((float)(this["TimelineMsPerPixel"]));
             }
             set {
                 this["TimelineMsPerPixel"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("50")]
-        public int TimelinePixelPerGrad {
-            get {
-                return ((int)(this["TimelinePixelPerGrad"]));
-            }
-            set {
-                this["TimelinePixelPerGrad"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("5")]
-        public double PitchScaleHzPerPixel {
-            get {
-                return ((double)(this["PitchScaleHzPerPixel"]));
-            }
-            set {
-                this["PitchScaleHzPerPixel"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("20")]
-        public double PitchScalePixelPerGrad {
-            get {
-                return ((double)(this["PitchScalePixelPerGrad"]));
-            }
-            set {
-                this["PitchScalePixelPerGrad"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("1")]
-        public double VolumeScalePercentPerPixel {
-            get {
-                return ((double)(this["VolumeScalePercentPerPixel"]));
-            }
-            set {
-                this["VolumeScalePercentPerPixel"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("20")]
-        public double VolumeScalePixelPerGrad {
-            get {
-                return ((double)(this["VolumeScalePixelPerGrad"]));
-            }
-            set {
-                this["VolumeScalePixelPerGrad"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("5")]
-        public double PanningScalePercentPerPixel {
-            get {
-                return ((double)(this["PanningScalePercentPerPixel"]));
-            }
-            set {
-                this["PanningScalePercentPerPixel"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("20")]
-        public double PanningScalePixelPerGrad {
-            get {
-                return ((double)(this["PanningScalePixelPerGrad"]));
-            }
-            set {
-                this["PanningScalePixelPerGrad"] = value;
             }
         }
     }

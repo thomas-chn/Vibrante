@@ -15,13 +15,13 @@ namespace Vibrante
         /// <summary>
         /// Init tracks generation variables and output sound duration.
         /// </summary>
-        /// <param name="sound_duration_in_ms">The duration between 0 and the last point.</param>
-        /// <param name="amplitude_divider">The divisor to use to avoid saturation of the output.</param>
-        public static void Init (out double sound_duration_in_ms, out double amplitude_divider)
+        /// <param name="soundDurationInMs">The duration between 0 and the last point.</param>
+        /// <param name="amplitudeDivider">The divisor to use to avoid saturation of the output.</param>
+        public static void Init (out float soundDurationInMs, out float amplitudeDivider)
         {
-            sound_duration_in_ms = 0;
+            soundDurationInMs = 0;
 
-            double total_amplitude = 0;
+            float total_amplitude = 0;
             
             foreach (ComposerTrack composerTrack in MainWindow.composer.TracksContainer.Children)
             {
@@ -32,13 +32,13 @@ namespace Vibrante
 
                 if (composerTrack.pitchTab.pointList.Count > 0)
                 {
-                    sound_duration_in_ms = Math.Max(sound_duration_in_ms, composerTrack.pitchTab.pointList.Last().X);
+                    soundDurationInMs = Math.Max(soundDurationInMs, composerTrack.pitchTab.pointList.Last().X);
                 }
 
                 total_amplitude += composerTrack.volumeTab.constantValue ?? CommonUtils.GetMaxY(composerTrack.volumeTab.pointList);
             }
 
-            amplitude_divider = total_amplitude / 100;
+            amplitudeDivider = total_amplitude / 100;
         }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace Vibrante
         {
             int trackIndex = 0;
 
-            Init(out double soundDurationInMs, out double amplitudeDivider);
+            Init(out float soundDurationInMs, out float amplitudeDivider);
 
             bool useStereo = MainWindow.composer.stereoEnabled;
             int sampleCount = ((int)Math.Ceiling((soundDurationInMs / 1000) * sampleRate));
@@ -58,7 +58,7 @@ namespace Vibrante
             for (int i = 0; i < sampleCount; i++)
             {
                 // Time in ms of the current sample
-                double currentTimeInMs = ((double)i / sampleRate * 1000);
+                float currentTimeInMs = ((float)i / sampleRate * 1000);
 
                 float sampleValue = 0;
 
@@ -78,8 +78,8 @@ namespace Vibrante
                             // If the last point is not yet reached
                             if (currentTimeInMs < composerTrack.pitchTab.pointList.Last().X)
                             {
-                                double currentFrequency = composerTrack.pitchTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentPitchPointIndex);
-                                double angleIncrement = 2 * Math.PI * currentFrequency / sampleRate;
+                                float currentFrequency = composerTrack.pitchTab.GetValueFromPointList(currentTimeInMs, ref composerTrack.generationVar_CurrentPitchPointIndex);
+                                float angleIncrement = (float)(2 * Math.PI * currentFrequency / sampleRate);
 
                                 composerTrack.generationVar_CurrentPitchIntegral += angleIncrement;
 

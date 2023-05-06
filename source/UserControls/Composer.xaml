@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:usercontrols="clr-namespace:Vibrante.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800" Loaded="UserControl_Loaded" SizeChanged="UserControl_SizeChanged" MouseMove="UserControl_MouseMove" MouseDown="UserControl_MouseDown" MouseUp="UserControl_MouseUp" Background="#00000000">
+             d:DesignHeight="450" d:DesignWidth="800" Loaded="UserControl_Loaded" SizeChanged="UserControl_SizeChanged" MouseMove="UserControl_MouseMove" MouseUp="UserControl_MouseUp" Background="#00000000">
 
     <UserControl.Resources>
         <ResourceDictionary>
@@ -44,28 +44,6 @@
                 </DockPanel>
 
                 <DockPanel Margin="30,5,0,0" DockPanel.Dock="Left" LastChildFill="False">
-                    <Grid Width="25" Height="25" Background="{DynamicResource ButtonBackground}" Margin="0,0,5,0" MouseLeftButtonDown="GenerateControl_MouseDown" ToolTip="Generate Sound">
-                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
-                        <Path Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
-                            <Path.Data>
-                                <PathGeometry>
-                                    <PathGeometry.Figures>
-                                        <PathFigureCollection>
-                                            <PathFigure StartPoint="5,12.5">
-                                                <PathFigure.Segments>
-                                                    <PathSegmentCollection>
-                                                        <BezierSegment Point1="12,3" Point2="13,22" Point3="20,12.5" />
-                                                    </PathSegmentCollection>
-                                                </PathFigure.Segments>
-                                            </PathFigure>
-                                        </PathFigureCollection>
-                                    </PathGeometry.Figures>
-                                </PathGeometry>
-                            </Path.Data>
-                        </Path>
-
-
-                    </Grid>
                     <Grid Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="SkipToStartControl_MouseDown" ToolTip="Skip to Start">
                         <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
                         <Polygon Fill="{DynamicResource NotSelectedIcon}" RenderTransformOrigin="0.5,0.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" StrokeLineJoin="Round" Stretch="Fill" Width="13" Height="15" Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0">
@@ -86,7 +64,7 @@
                         <Rectangle Fill="{DynamicResource NotSelectedIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" Height="15" Width="3" Margin="0,0,12.5,0"></Rectangle>
                     </Grid>
                     <Grid x:Name="PlayControl_Grid" Width="25" Height="25" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="PlayControl_MouseDown" ToolTip="Play">
-                        <Border BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
+                        <Border x:Name="PlayButton_Border" BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2,2,2,2"/>
                         <Polygon x:Name="PlayButton_PlayIcon" Fill="{DynamicResource NotSelectedIcon}" RenderTransformOrigin="0.5,0.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" StrokeLineJoin="Round" Stretch="Fill" Width="13" Height="15" Stroke="{DynamicResource NotSelectedIcon}" StrokeThickness="2" Margin="2,0,0,0">
 
                             <Polygon.RenderTransform>
@@ -129,7 +107,7 @@
 
                 <DockPanel DockPanel.Dock="Left" Height="25" Margin="30,5,0,0">
                     <Label Content="Stereo" Foreground="{StaticResource NotSelectedIcon}" FontWeight="Bold" FontSize="12" Padding="5,0,5,0" VerticalContentAlignment="Center"/>
-                    <Grid x:Name="StereoCheckBox_Grid" Width="20" Height="20" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseDown="StereoCheckBox_MouseDown" ToolTip="Generate sounds in stereo" HorizontalAlignment="Left">
+                    <Grid x:Name="StereoCheckBox_Grid" Width="20" Height="20" Background="{StaticResource ButtonBackground}" Margin="0,0,5,0" MouseLeftButtonDown="StereoCheckBox_LeftClick" ToolTip="Generate sounds in stereo" HorizontalAlignment="Left">
                         <Border x:Name="StereoCheckBox_Border" BorderBrush="{StaticResource ButtonBorder}" BorderThickness="1"/>
                         <Path x:Name="StereoCheckMark" Stroke="{StaticResource NotSelectedIcon}" StrokeThickness="2.5" Data="M 3,11 L 7,18 L 18,5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform" Width="15" Height="15" Visibility="Hidden"/>
                     </Grid>
@@ -143,7 +121,11 @@
                 </Grid.ColumnDefinitions>
 
                 <Label x:Name="NewTrackButton" Content="Create a new track" Foreground="{DynamicResource TextForeground}" Background="{DynamicResource ButtonBackground}" MouseEnter="NewTrackButton_MouseEnter" MouseLeave="NewTrackButton_MouseLeave" MouseDown="NewTrackButton_MouseDown" Height="25" DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="5,0,5,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-                <Canvas x:Name="Timeline" Background="{DynamicResource ButtonBackground}" DockPanel.Dock="Top" Grid.Column="1" ClipToBounds="True" Height="35" MouseLeftButtonDown="Timeline_MouseLeftDown" MouseLeftButtonUp="Timeline_MouseLeftUp" Margin="25,0,0,0"/>
+
+                <Grid DockPanel.Dock="Top" Grid.Column="1" Margin="25,0,0,0" Height="35" ClipToBounds="True">
+                    <Canvas x:Name="Timeline" Background="{DynamicResource ButtonBackground}" MouseLeftButtonDown="Timeline_MouseLeftDown" MouseLeftButtonUp="Timeline_MouseLeftUp"/>
+                    <Line x:Name="Playhead" Stroke="Red" IsHitTestVisible="False" StrokeThickness="1" Y2="{Binding ActualHeight, ElementName=Timeline, Mode=OneWay}"/>
+                </Grid>
             </Grid>
 
 

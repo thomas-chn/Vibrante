@@ -7,6 +7,8 @@ using System.Windows;
 using System.Windows.Media;
 using Vibrante.UserControls;
 
+using PointF = System.Drawing.PointF;
+
 namespace Vibrante.Classes
 {
     class Interpolation
@@ -33,7 +35,7 @@ namespace Vibrante.Classes
         /// <param name="point2">Second point.</param>
         /// <param name="x">Value to interpolate.</param>
         /// <returns>Result of the interpolation (y).</returns>
-        internal delegate double interpolationFunction(Point point1, Point point2, double x);
+        internal delegate float interpolationFunction(PointF point1, PointF point2, float x);
 
         /// <summary>
         /// Create elements to draw a line between two points.
@@ -41,7 +43,7 @@ namespace Vibrante.Classes
         /// <param name="point1">First point.</param>
         /// <param name="point2">Second point.</param>
         /// <returns>Array of elements to draw the line.</returns>
-        internal delegate FrameworkElement[] drawLineFunction(Point point1, Point point2, Brush color);
+        internal delegate FrameworkElement[] drawLineFunction(PointF point1, PointF point2, Brush color);
     }
 
     class ComposerTab
@@ -59,49 +61,49 @@ namespace Vibrante.Classes
         /// <summary>
         /// Vertical zoom factor. For example, 0.5 is two times bigger and 2 is two times smaller.
         /// </summary>
-        internal double verticalZoom = 1;
+        internal float verticalZoom = 1;
 
         /// <summary>
         /// Minimum value displayed (at the bottom of the canvas).
         /// </summary>
-        internal double verticalPosition = 0;
+        internal float verticalPosition = 0;
 
         /// <summary>
         /// Number of units between each graduation.
         /// </summary>
-        internal double unitsPerGrad;
+        internal float unitsPerGrad;
 
         /// <summary>
         /// Number of pixels between each graduation
         /// </summary>
-        internal double pixelsPerGrad;
+        internal float pixelsPerGrad;
 
         /// <summary>
         /// Minimum accessible value.
         /// </summary>
-        internal double minValue;
+        internal float minValue;
 
         /// <summary>
         /// Maximum accessible value.
         /// </summary>
-        internal double maxValue;
+        internal float maxValue;
 
         
         /// <summary>
         /// Precalculated coefficient: pixelsPerGrad / unitsPerGrad.
         /// </summary>
-        internal double unitToPixelCoeff;
+        internal float unitToPixelCoeff;
 
         /// <summary>
         /// Precalculated coefficient: unitsPerGrad / pixelsPerGrad.
         /// </summary>
-        internal double pixelToUnitCoeff;
+        internal float pixelToUnitCoeff;
 
 
         /// <summary>
         /// List containing all points. Must be always sorted according to the time position.
         /// </summary>
-        internal List<Point> pointList = new List<Point>();
+        internal List<PointF> pointList = new List<PointF>();
 
         /// <summary>
         /// Index of the point currently clicked. Null if no point is clicked.
@@ -111,13 +113,17 @@ namespace Vibrante.Classes
         /// <summary>
         /// Indicates the constant value of the tab. Null if the value is not constant.
         /// </summary>
-        internal double? constantValue = null;
+        internal float? constantValue = null;
 
         /// <summary>
         /// Interpolation function to use between points.
         /// </summary>
         internal Interpolation interpolation;
 
+        /// <summary>
+        /// Indicates if the tab has changed since the last canvas render.
+        /// </summary>
+        internal bool hasChanged = false;
 
         /// <summary>
         /// Update <see cref="unitToPixelCoeff"/> and <see cref="pixelToUnitCoeff"/> based on <see cref="pixelsPerGrad"/> and <see cref="unitsPerGrad"/>.
@@ -131,20 +137,20 @@ namespace Vibrante.Classes
         /// <summary>
         /// Convert a value from the tab unit to pixels.
         /// </summary>
-        internal double UnitToPixel(double value)
+        internal float UnitToPixel(float value)
         {
             return value * unitToPixelCoeff / verticalZoom;
         }
 
         /// <summary>
-        /// Convert a value from pixiels to the tab unit.
+        /// Convert a value from pixels to the tab unit.
         /// </summary>
-        internal double PixelToUnit(double value)
+        internal float PixelToUnit(float value)
         {
             return value * pixelToUnitCoeff * verticalZoom;
         }
     
-        internal double GetValueFromPointList(double x, ref int start_index)
+        internal float GetValueFromPointList(float x, ref int start_index)
         {
             if (pointList.Count > 0)
             {
@@ -158,7 +164,7 @@ namespace Vibrante.Classes
                 }
                 else
                 {
-                    Point pointAfter = pointList[start_index + 1];
+                    PointF pointAfter = pointList[start_index + 1];
 
                     // If the 2nd point has been passed, increment the index of the current point until the 2nd point is after again
                     while (pointAfter.X < x)
@@ -167,7 +173,7 @@ namespace Vibrante.Classes
                         pointAfter = pointList[start_index + 1];
                     }
 
-                    Point pointBefore = pointList[start_index];
+                    PointF pointBefore = pointList[start_index];
 
                     return interpolation.function(pointBefore, pointAfter, x);
                 }
@@ -175,11 +181,8 @@ namespace Vibrante.Classes
             }
             else
             {
-                return double.NaN;
+                return float.NaN;
             }
-            
-            Point pitchPointAfter = pointList[start_index+1];
-            Point pitchPointBefore = pointList[start_index];
             
         }
 

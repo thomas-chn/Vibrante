@@ -5,13 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Vibrante"
         mc:Ignorable="d"
-        Title="Vibrante" Height="450" Width="800" Background="#FF282A46">
+        Title="Vibrante" Height="450" Width="800" Background="#FF282A46" Icon="/icon.png">
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Disabled"> <!--Makes elements lose focus when clicked on background-->
             <DockPanel x:Name="MainContainer">
 
                 <DockPanel x:Name="HeaderContainer" VerticalAlignment="Top" LastChildFill="False" DockPanel.Dock="Top" Margin="0,5,0,0">
-                    <Label Content="Vibrante is still in development, this version is not ready to be used." Foreground="White" BorderBrush="White" MinWidth="50" HorizontalContentAlignment="Center" Padding="0,0,0,0" Margin="5,0,5,0" Background="#33000000" FontSize="14"/>
+                    
                 </DockPanel>
 
                 <DockPanel Visibility="Hidden" x:Name="TabsContainer" VerticalAlignment="Top" LastChildFill="False" Margin="0,10,0,0" Height="20.62" DockPanel.Dock="Top">

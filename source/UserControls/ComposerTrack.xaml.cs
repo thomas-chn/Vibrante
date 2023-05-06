@@ -18,6 +18,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using PointF = System.Drawing.PointF;
 
 namespace Vibrante.UserControls
 {
@@ -32,7 +33,7 @@ namespace Vibrante.UserControls
             unitsPerGrad = 100,
             pixelsPerGrad = 20,
             minValue = 0,
-            maxValue = double.PositiveInfinity,
+            maxValue = float.PositiveInfinity,
         };
 
         internal Classes.ComposerTab volumeTab = new Classes.ComposerTab()
@@ -68,14 +69,11 @@ namespace Vibrante.UserControls
         internal int generationVar_CurrentVolumePointIndex = 0;
         internal int generationVar_CurrentPanningPointIndex = 0;
 
-        private enum ControlTypes
-        {
-            PointContainer
-        }
 
         public ComposerTrack()
         {
             currentTab = pitchTab;
+            CompositionTarget.Rendering += OnRendering;
 
             InitializeComponent();
 
@@ -162,75 +160,85 @@ namespace Vibrante.UserControls
                 PanningTab_InterpolationCB.SelectedValue = panningSelection;
         }
 
-
+        
         /// <summary>
-        /// Insert a point into the current point list in such a way that the list remains sorted according to the time position.
+        /// Insert a point in the specified tab point list.
+        /// Doesn't work if the point is out of bounds or if the point already exists.
         /// </summary>
-        public void AddPointToList(double time_position, double value)
+        private void AddPointToTab(PointF point, Classes.ComposerTab tab)
         {
-            bool pointAdded = false;
+            // Check if the point is out of bounds
+            if (point.Y < tab.minValue || point.Y > tab.maxValue)
+                return;
 
             // Find at which index to insert it
             for (int i = 0; i < currentTab.pointList.Count; i++)
             {
                 // If the time position of the point to add is less than the current point in the list
-                if (time_position < currentTab.pointList[i].X)
+                if (point.X < currentTab.pointList[i].X)
                 {
                     // Insert the new point before this point
-                    currentTab.pointList.Insert(i, new Point(time_position, value));
-                    pointAdded = true;
-                    break;
+                    currentTab.pointList.Insert(i, point);
+                    currentTab.hasChanged = true;
+                    return;
                 }
+                
+                // If the point already exists
+                else if (point == currentTab.pointList[i])
+                    return;
             }
 
-            // If the point has not been added (no other point with a higher temporal position)
-            if (!pointAdded)
-            {
-                currentTab.pointList.Add(new Point(time_position, value));
-            }
+            // If the point has not been added and there have been no problems, add it
+            currentTab.pointList.Add(point);
+            currentTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
 
         /// <summary>
         /// Update the coordinates of the point, and change its index if necessary so that the list remains sorted.
         /// </summary>
-        /// <param name="current_index">Current index of the point in the list.</param>
-        public void MovePoint(int current_index, double new_time_position, double new_value)
+        /// <param name="currentPointIndex">Current index of the point in the list.</param>
+        private void MovePointInTab(float newTimePosition, float newValue, int currentPointIndex, Classes.ComposerTab tab)
         {
             // If the point is moved ahead of the previous point, swap the two points
-            if (current_index >= 1 && new_time_position < currentTab.pointList[current_index - 1].X)
+            if (currentPointIndex >= 1 && newTimePosition < tab.pointList[currentPointIndex - 1].X)
             {
-                currentTab.pointList[current_index] = currentTab.pointList[current_index - 1];
-                currentTab.pointList[current_index - 1] = new Point(new_time_position, new_value);
-                currentTab.clickedPointIndex = current_index - 1;
+                tab.pointList[currentPointIndex] = tab.pointList[currentPointIndex - 1];
+                tab.pointList[currentPointIndex - 1] = new PointF(newTimePosition, newValue);
+                tab.clickedPointIndex = currentPointIndex - 1;
             }
             
             // If the point is moved after the previous point, swap the two points
-            else if (current_index < currentTab.pointList.Count - 1 && new_time_position > currentTab.pointList[current_index + 1].X)
+            else if (currentPointIndex < tab.pointList.Count - 1 && newTimePosition > tab.pointList[currentPointIndex + 1].X)
             {
-                currentTab.pointList[current_index] = currentTab.pointList[current_index + 1];
-                currentTab.pointList[current_index + 1] = new Point(new_time_position, new_value);
-                currentTab.clickedPointIndex = current_index + 1;
+                tab.pointList[currentPointIndex] = tab.pointList[currentPointIndex + 1];
+                tab.pointList[currentPointIndex + 1] = new PointF(newTimePosition, newValue);
+                tab.clickedPointIndex = currentPointIndex + 1;
             }
 
             // Else just update the point
             else
             {
-                currentTab.pointList[current_index] = new Point(new_time_position, new_value);
+                tab.pointList[currentPointIndex] = new PointF(newTimePosition, newValue);
             }
+
+            tab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
 
+        
         public void UpdateVerticalScaleBar()
         {
             VerticalScaleBar.Children.Clear();
 
-            double unitsPerGradWithZoom = currentTab.unitsPerGrad * currentTab.verticalZoom;
+            float unitsPerGradWithZoom = currentTab.unitsPerGrad * currentTab.verticalZoom;
 
-            double firstGraduation = CommonUtils.RoundToPreviousMultiple(currentTab.verticalPosition, unitsPerGradWithZoom);
-            double valueCount = unitsPerGradWithZoom * VerticalScaleBar.ActualHeight / currentTab.pixelsPerGrad;
-            double lastGraduation = CommonUtils.RoundToNextMultiple(currentTab.verticalPosition + valueCount, unitsPerGradWithZoom);
+            float firstGraduation = CommonUtils.RoundToPreviousMultiple(currentTab.verticalPosition, unitsPerGradWithZoom);
+            float valueCount = unitsPerGradWithZoom * (float)VerticalScaleBar.ActualHeight / currentTab.pixelsPerGrad;
+            float lastGraduation = CommonUtils.RoundToNextMultiple(currentTab.verticalPosition + valueCount, unitsPerGradWithZoom);
 
             int counter = 0;
-            for (double i = firstGraduation; i <= lastGraduation; i += unitsPerGradWithZoom, counter++)
+            for (float i = firstGraduation; i <= lastGraduation; i += unitsPerGradWithZoom, counter++)
             {
                 double pixelPosition = currentTab.UnitToPixel(i - currentTab.verticalPosition);
 
@@ -270,7 +278,7 @@ namespace Vibrante.UserControls
         {
             Brush color = currentTab.constantValue != null ? (SolidColorBrush)Resources["DisabledColor"] : currentTab.mainColor;
             
-            void DrawPoint(double x, double y, int i)
+            void DrawPoint(float x, float y, int i)
             {
                 Grid pointContainer = new Grid()
                 {
@@ -278,7 +286,6 @@ namespace Vibrante.UserControls
                     Height = Properties.Settings.Default.SoundCompositer_DotSize * 2,
                     Background = Brushes.Transparent,
                     Margin = new Thickness(x - Properties.Settings.Default.SoundCompositer_DotSize, y - Properties.Settings.Default.SoundCompositer_DotSize, 0, 0),
-                    Tag = new object[] { ControlTypes.PointContainer, i },
                     Children =
                     {
                         new Ellipse()
@@ -308,6 +315,8 @@ namespace Vibrante.UserControls
                     else if (ev.RightButton == MouseButtonState.Pressed) // Remove the point on right click
                     {
                         currentTab.pointList.RemoveAt(i);
+                        currentTab.hasChanged = true;
+                        MainWindow.composer.hasAudioChanged = true;
                         UpdateCanvas();
                     }
                 };
@@ -317,6 +326,8 @@ namespace Vibrante.UserControls
                     if (ev.RightButton == MouseButtonState.Pressed) // Remove the point on mouseover with right button pressed
                     {
                         currentTab.pointList.RemoveAt(i);
+                        currentTab.hasChanged = true;
+                        MainWindow.composer.hasAudioChanged = true;
                         UpdateCanvas();
                     }
                 };
@@ -339,7 +350,7 @@ namespace Vibrante.UserControls
                 SoundCanvas.Children.Add(pointContainer);
             }
             
-            void DrawLine(Point point1, Point point2)
+            void DrawLine(PointF point1, PointF point2)
             {
                 // If the interpolation function has a custom line drawing function, use it
                 if (currentTab.interpolation.customLineDrawingFunction != null)
@@ -359,10 +370,10 @@ namespace Vibrante.UserControls
                     // For each segment
                     for (int i = 0; i < segmentsCount; i++)
                     {
-                        double startX = point1.X + i * lineSegmentLength;
-                        double startY = currentTab.interpolation.function(point1, point2, startX);
-                        double endX = i < segmentsCount - 1 ? point1.X + (i + 1) * lineSegmentLength : point2.X;
-                        double endY = currentTab.interpolation.function(point1, point2, endX);
+                        float startX = point1.X + i * lineSegmentLength;
+                        float startY = currentTab.interpolation.function(point1, point2, startX);
+                        float endX = i < segmentsCount - 1 ? point1.X + (i + 1) * lineSegmentLength : point2.X;
+                        float endY = currentTab.interpolation.function(point1, point2, endX);
 
                         // Draw the line
                         Line line = new Line()
@@ -403,21 +414,21 @@ namespace Vibrante.UserControls
             
             
             int index = 0; // Index of the current point
-            double previousX = 0; // X coordinate of the previous point
-            double previousY = 0; // Y coordinate of the previous point
+            float previousX = 0; // X coordinate of the previous point
+            float previousY = 0; // Y coordinate of the previous point
 
-            foreach (Point point in currentTab.pointList)
+            foreach (PointF point in currentTab.pointList)
             {
                 // Coordinates in pixels of the point
-                double x = Composer.Static.ConvertUnitToPixels(point.X - MainWindow.composer.timePosition, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
-                double y = SoundCanvas.ActualHeight - currentTab.UnitToPixel(point.Y - currentTab.verticalPosition);
+                float x = MainWindow.composer.MsToPixel(point.X - MainWindow.composer.timePosition);
+                float y = (float)SoundCanvas.ActualHeight - currentTab.UnitToPixel(point.Y - currentTab.verticalPosition);
                 
                 DrawPoint(x, y, index);
 
                 // If the current point is not the first, draw a line between this point and the previous one
                 if (index > 0)
                 {
-                    DrawLine(new Point(previousX, previousY), new Point(x, y));
+                    DrawLine(new PointF(previousX, previousY), new PointF(x, y));
                 }
 
                 // Update the previous point coordinates
@@ -449,12 +460,12 @@ namespace Vibrante.UserControls
             {
                 if (currentTab.pointList.Count >= 1)
                 {
-                    Point firstPoint = currentTab.pointList.First();
-                    Point lastPoint = currentTab.pointList.Last();
+                    PointF firstPoint = currentTab.pointList.First();
+                    PointF lastPoint = currentTab.pointList.Last();
 
-                    double x1 = Composer.Static.ConvertUnitToPixels(firstPoint.X - MainWindow.composer.timePosition, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                    double x1 = MainWindow.composer.MsToPixel(firstPoint.X - MainWindow.composer.timePosition);
                     double y1 = SoundCanvas.ActualHeight - currentTab.UnitToPixel(firstPoint.Y - currentTab.verticalPosition);
-                    double x2 = Composer.Static.ConvertUnitToPixels(lastPoint.X - MainWindow.composer.timePosition, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                    double x2 = MainWindow.composer.MsToPixel(lastPoint.X - MainWindow.composer.timePosition);
                     double y2 = SoundCanvas.ActualHeight - currentTab.UnitToPixel(lastPoint.Y - currentTab.verticalPosition);
 
                     SoundCanvas.Children.Add(new Line()
@@ -484,14 +495,28 @@ namespace Vibrante.UserControls
 
         }
 
-     
+
 
         #region Events
+
+        /// <summary>
+        /// Called before each UI render.
+        /// <br>If the current tab has been modified since the last render, update the canvas.</br>
+        /// </summary>
+        private void OnRendering(object sender, EventArgs e)
+        {
+            if (currentTab.hasChanged)
+            {
+                UpdateCanvas();
+                currentTab.hasChanged = false;
+            }
+        }
+
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             // Calculate the number of pixels per graduation required to display all values in the vertical scale bar
-            volumeTab.pixelsPerGrad = VerticalScaleBar.ActualHeight * (volumeTab.unitsPerGrad / (volumeTab.maxValue - volumeTab.minValue));
-            panningTab.pixelsPerGrad = VerticalScaleBar.ActualHeight * (panningTab.unitsPerGrad / (panningTab.maxValue - panningTab.minValue));
+            volumeTab.pixelsPerGrad = (float)VerticalScaleBar.ActualHeight * (volumeTab.unitsPerGrad / (volumeTab.maxValue - volumeTab.minValue));
+            panningTab.pixelsPerGrad = (float)VerticalScaleBar.ActualHeight * (panningTab.unitsPerGrad / (panningTab.maxValue - panningTab.minValue));
 
             pitchTab.UpdateCoefficients();
             volumeTab.UpdateCoefficients();
@@ -501,8 +526,8 @@ namespace Vibrante.UserControls
         }
         private void UserControl_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            UpdateCanvas();
-            UpdateVerticalScaleBar();
+            //UpdateCanvas();
+            //UpdateVerticalScaleBar();
         }
 
         private void TrackName_MouseLeftDown(object sender, MouseButtonEventArgs e)
@@ -520,6 +545,12 @@ namespace Vibrante.UserControls
             {
                 MainWindow.keyboardfocus.Focus();
             }
+        }
+        
+        private void DeleteTrack_LeftClick(object sender, MouseButtonEventArgs e)
+        {
+            MainWindow.composer.TracksContainer.Children.Remove(this);
+            MainWindow.composer.hasAudioChanged = true;
         }
 
         private void PitchTab_MouseLeftDown(object sender, MouseButtonEventArgs e)
@@ -554,14 +585,75 @@ namespace Vibrante.UserControls
             UpdateVerticalScaleBar();
         }
 
+        private void PitchTab_CopyPointsClick(object sender, RoutedEventArgs e)
+        {
+            MainWindow.composer.copiedPoints = new List<PointF>(pitchTab.pointList);
+        }
+        private void VolumeTab_CopyPointsClick(object sender, RoutedEventArgs e)
+        {
+            MainWindow.composer.copiedPoints = new List<PointF>(volumeTab.pointList);
+        }
+        private void PanningTab_CopyPointsClick(object sender, RoutedEventArgs e)
+        {
+            MainWindow.composer.copiedPoints = new List<PointF>(panningTab.pointList);
+        }
+
+        private void PitchTab_PasteAddPointsClick(object sender, RoutedEventArgs e)
+        {
+            Tab_PasteAddPoints(pitchTab);
+        }
+        private void VolumeTab_PasteAddPointsClick(object sender, RoutedEventArgs e)
+        {
+            Tab_PasteAddPoints(volumeTab);
+        }
+        private void PanningTab_PasteAddPointsClick(object sender, RoutedEventArgs e)
+        {
+            Tab_PasteAddPoints(panningTab);
+        }
+        private void Tab_PasteAddPoints(Classes.ComposerTab tab)
+        {
+            if (MainWindow.composer.copiedPoints.Count == 0) return; // If there are no points to paste, return
+
+            foreach (PointF point in MainWindow.composer.copiedPoints)
+            {
+                AddPointToTab(point, tab);
+            }
+        }
+        
+        private void PitchTab_PasteReplacePointsClick(object sender, RoutedEventArgs e)
+        {
+            Tab_PasteReplacePoints(pitchTab);
+        }
+        private void VolumeTab_PasteReplacePointsClick(object sender, RoutedEventArgs e)
+        {
+            Tab_PasteReplacePoints(volumeTab);
+        }
+        private void PanningTab_PasteReplacePointsClick(object sender, RoutedEventArgs e)
+        {
+            Tab_PasteReplacePoints(panningTab);
+        }
+        private void Tab_PasteReplacePoints(Classes.ComposerTab tab)
+        {
+            if (MainWindow.composer.copiedPoints.Count == 0) return; // If there are no points to paste, return
+
+            tab.pointList.Clear();
+            
+            foreach (PointF point in MainWindow.composer.copiedPoints)
+            {
+                AddPointToTab(point, tab);
+            }
+        }
+
         private void PitchTab_InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             pitchTab.interpolation = (Classes.Interpolation)((ComboBoxItem)PitchTab_InterpolationCB.SelectedItem).Tag;
-            UpdateCanvas();
+            pitchTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
         
         private void VolumeTab_ConstantCheckBox_Changed(object sender, RoutedEventArgs e)
         {
+            // Enable the textbox only if the checkbox is checked
             if (VolumeTab_ConstantTextBox != null)
             {
                 VolumeTab_ConstantTextBox.IsEnabled = VolumeTab_ConstantCheckBox.IsChecked == true;
@@ -576,25 +668,22 @@ namespace Vibrante.UserControls
             {
                 volumeTab.constantValue = null;
             }
-            
-            if (SoundCanvas != null)
-            {
-                UpdateCanvas();
-            }
+
+            volumeTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
         private void VolumeTab_ConstantTextBox_ValueChanged(object sender, RoutedEventArgs e)
         {
             volumeTab.constantValue = VolumeTab_ConstantTextBox.Value;
-            
-            if (SoundCanvas != null)
-            {
-                UpdateCanvas();
-            }
+
+            volumeTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
         private void VolumeTab_InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             volumeTab.interpolation = (Classes.Interpolation)((ComboBoxItem)VolumeTab_InterpolationCB.SelectedItem).Tag;
-            UpdateCanvas();
+            volumeTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
 
         private void PanningTab_ConstantCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -614,32 +703,21 @@ namespace Vibrante.UserControls
                 panningTab.constantValue = null;
             }
 
-            if (SoundCanvas != null)
-            {
-                UpdateCanvas();
-            }
+            panningTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
         private void PanningTab_ConstantTextBox_ValueChanged(object sender, RoutedEventArgs e)
         {
             panningTab.constantValue = PanningTab_ConstantTextBox.Value;
 
-            if (SoundCanvas != null)
-            {
-                UpdateCanvas();
-            }
+            panningTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
         private void PanningTab_InterpolationCB_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             panningTab.interpolation = (Classes.Interpolation)((ComboBoxItem)PanningTab_InterpolationCB.SelectedItem).Tag;
-            UpdateCanvas();
-        }
-
-        private void CanvasMouseClick(object sender, MouseButtonEventArgs e) // I don't remember why I did that, I will check later
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                CanvasMouseLeftClick(sender, e);
-            }
+            panningTab.hasChanged = true;
+            MainWindow.composer.hasAudioChanged = true;
         }
         
         private void CanvasMouseLeftClick(object sender, MouseButtonEventArgs e)
@@ -647,8 +725,8 @@ namespace Vibrante.UserControls
             // Add a point
             if (SoundCanvas.IsMouseDirectlyOver)
             {
-                double positionInMs = Math.Round(Composer.Static.ConvertPixelsToUnit(e.GetPosition(SoundCanvas).X, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom), 2) + MainWindow.composer.timePosition;
-                double positionInUnit = Math.Round(currentTab.PixelToUnit(SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y) + currentTab.verticalPosition, 2);
+                float positionInMs = (float)Math.Round(MainWindow.composer.PixelToMs((float)e.GetPosition(SoundCanvas).X) + MainWindow.composer.timePosition, 2);
+                float positionInUnit = (float)Math.Round(currentTab.PixelToUnit((float)(SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y)) + currentTab.verticalPosition, 2);
 
                 if (MainWindow.composer.snapToGridEnabled)
                 {
@@ -656,8 +734,7 @@ namespace Vibrante.UserControls
                     positionInUnit = CommonUtils.RoundToNearestMultiple(positionInUnit, MainWindow.composer.SnapToGridSpacingValueY_TextBox.Value);
                 }
 
-                AddPointToList(positionInMs, positionInUnit);
-                UpdateCanvas();
+                AddPointToTab(new PointF(positionInMs, positionInUnit), currentTab);
 
                 currentTab.clickedPointIndex = null;
             }
@@ -665,11 +742,11 @@ namespace Vibrante.UserControls
         
         private void CanvasMouseMove(object sender, MouseEventArgs e)
         {
-            Point mousePosition = new Point(Math.Round(e.GetPosition(SoundCanvas).X, 0), Math.Round(e.GetPosition(SoundCanvas).Y, 0));
+            PointF mousePosition = new PointF((float)Math.Round(e.GetPosition(SoundCanvas).X, 0), (float)Math.Round(e.GetPosition(SoundCanvas).Y, 0));
             
             //Update PositionLabel
-            double positionInMs = Math.Round(Composer.Static.ConvertPixelsToUnit(mousePosition.X, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom), 2) + MainWindow.composer.timePosition;
-            double positionInUnit = Math.Round(currentTab.PixelToUnit(SoundCanvas.ActualHeight - mousePosition.Y) + currentTab.verticalPosition, 2);
+            float positionInMs = (float)Math.Round(MainWindow.composer.PixelToMs(mousePosition.X) + MainWindow.composer.timePosition, 2);
+            float positionInUnit = (float)Math.Round(currentTab.PixelToUnit((float)SoundCanvas.ActualHeight - mousePosition.Y) + currentTab.verticalPosition, 2);
             
             if (MainWindow.composer.snapToGridEnabled)
             {
@@ -683,15 +760,13 @@ namespace Vibrante.UserControls
             //Move a point
             if (e.LeftButton == MouseButtonState.Pressed && currentTab.clickedPointIndex != null)
             {
-                MovePoint((int)currentTab.clickedPointIndex, positionInMs, positionInUnit);
-                UpdateCanvas(10);
+                MovePointInTab(positionInMs, positionInUnit, (int)currentTab.clickedPointIndex, currentTab);
             }
         }
 
         private void CanvasMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
             currentTab.clickedPointIndex = null;
-            UpdateCanvas(enablePointTooltip:true);
         }
 
         private void CanvasMouseEnter(object sender, MouseEventArgs e)
@@ -711,10 +786,6 @@ namespace Vibrante.UserControls
             MainWindow.composer.lastMousePosition = e.GetPosition(MainWindow.composer.MainGrid);
         }
         
-
-
-
-
         private void CanvasMouseWheel(object sender, MouseWheelEventArgs e)
         {
             // Disable zooming and panning for tabs other than "Pitch" (because of a rounding bug with bounds that I can't solve)
@@ -729,18 +800,18 @@ namespace Vibrante.UserControls
             // Ctrl + Wheel => Vertical Zoom
             if (isCtrlPressed && !isShiftPressed)
             {
-                double mousePositionInPixels = SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y;
-                double mousePositionInUnitBefore = currentTab.PixelToUnit(mousePositionInPixels) + currentTab.verticalPosition;
-
-                double divider = e.Delta < 0 ? 0.5 : 2;
+                float mousePositionInPixels = (float)(SoundCanvas.ActualHeight - e.GetPosition(SoundCanvas).Y);
+                float mousePositionInUnitBefore = currentTab.PixelToUnit(mousePositionInPixels) + currentTab.verticalPosition;
+                
+                float divider = e.Delta < 0 ? 0.5f : 2f;
 
                 if (currentTab.verticalZoom / divider >= 0.01)
                 {
                     currentTab.verticalZoom /= divider;
                 }
                     
-
-                double mousePositionInUnitAfter = currentTab.PixelToUnit(mousePositionInPixels) + currentTab.verticalPosition;
+                
+                float mousePositionInUnitAfter = currentTab.PixelToUnit(mousePositionInPixels) + currentTab.verticalPosition;
 
                 currentTab.verticalPosition += (mousePositionInUnitBefore - mousePositionInUnitAfter);
                 currentTab.verticalPosition = (currentTab.verticalPosition < 0) ? 0 : currentTab.verticalPosition;
@@ -751,17 +822,17 @@ namespace Vibrante.UserControls
             // Ctrl + Shift + Wheel => Time Zoom
             else if (isCtrlPressed && isShiftPressed)
             {
-                double mousePositionInPixels = e.GetPosition(SoundCanvas).X;
-                double mousePositionInMsBefore = Composer.Static.ConvertPixelsToUnit(mousePositionInPixels, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                float mousePositionInPixels = (float)e.GetPosition(SoundCanvas).X;
+                float mousePositionInMsBefore = MainWindow.composer.PixelToMs(mousePositionInPixels);
 
-                double divider = e.Delta < 0 ? 0.5 : 2;
+                float divider = e.Delta < 0 ? 0.5f : 2f;
 
                 if (MainWindow.composer.timeZoom / divider >= 0.01)
                 {
                     MainWindow.composer.timeZoom /= divider;
                 }
 
-                double mousePositionInMsAfter = Composer.Static.ConvertPixelsToUnit(mousePositionInPixels, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                float mousePositionInMsAfter = MainWindow.composer.PixelToMs(mousePositionInPixels);
 
                 MainWindow.composer.timePosition += (mousePositionInMsBefore - mousePositionInMsAfter);
                 MainWindow.composer.timePosition = (MainWindow.composer.timePosition < 0) ? 0 : MainWindow.composer.timePosition;
@@ -773,17 +844,9 @@ namespace Vibrante.UserControls
             // Shift + Wheel => Time Panning
             else if (isShiftPressed)
             {
-                int deltaXInPixels = (int)Math.Round(e.Delta * Settings.Default.HorizontalPanningMouseWheelSensi);
-                double deltaXInMs = Composer.Static.ConvertPixelsToUnit(deltaXInPixels, Settings.Default.TimelineMsPerPixel, MainWindow.composer.timeZoom);
+                float delta = (MainWindow.composer.msPerGrad / 4) * MainWindow.composer.timeZoom * Math.Sign(e.Delta);
 
-                if (MainWindow.composer.timePosition + deltaXInMs < 0)
-                {
-                    MainWindow.composer.timePosition = 0;
-                }
-                else
-                {
-                    MainWindow.composer.timePosition += deltaXInMs;
-                }
+                MainWindow.composer.timePosition = Math.Max(0, MainWindow.composer.timePosition + delta);
 
                 MainWindow.composer.UpdateTimeline();
                 MainWindow.composer.UpdateEveryTrackCanvas();
@@ -792,18 +855,21 @@ namespace Vibrante.UserControls
             // Only Wheel => Vertical Panning
             else
             {
-                double delta = (currentTab.unitsPerGrad / 2) * currentTab.verticalZoom * Math.Sign(e.Delta);
+                float delta = (currentTab.unitsPerGrad / 2) * currentTab.verticalZoom * Math.Sign(e.Delta);
 
                 // Clamp the position between the min and max values (max not implemented due to a rounding bug that I can't solve)
                 currentTab.verticalPosition = Math.Max(currentTab.minValue, currentTab.verticalPosition + delta);
-                //CurrentPosition = Math.Min(CurrentPosition, CurrentMinMaxValues.Item2 - PixelToVerticalsUnits(SoundCanvas.ActualHeight));
 
                 UpdateVerticalScaleBar();
             }
 
-            CanvasMouseMove(sender, e); // Simulate mouse movement to refresh UI
-            UpdateCanvas();
+            e.Handled = true;
+
+            CanvasMouseMove(sender, e); // Simulate mouse movement to update mouse position
+
+            currentTab.hasChanged = true;
         }
+
 
         #endregion
 
